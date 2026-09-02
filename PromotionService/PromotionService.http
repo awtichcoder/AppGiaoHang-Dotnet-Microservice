@@ -1,6 +1,50 @@
-@PromotionService_HostAddress = http://localhost:5154
+@PromotionService_HostAddress = http://localhost:6207
+@internalKey = dev-only-internal-key-change-me
 
-GET {{PromotionService_HostAddress}}/weatherforecast/
-Accept: application/json
+### Validate mã FREESHIP - áp dụng được (seed sẵn trong migration)
+POST {{PromotionService_HostAddress}}/api/promotion/validate
+Content-Type: application/json
+X-Internal-Key: {{internalKey}}
+
+{
+  "code": "FREESHIP",
+  "customerId": "8f14e45f-ea1c-4f2e-9b3d-77c0d5a1b201",
+  "orderAmount": 65400
+}
+
+### Validate mã chưa đạt giá trị tối thiểu -> valid=false (vẫn 200)
+POST {{PromotionService_HostAddress}}/api/promotion/validate
+Content-Type: application/json
+X-Internal-Key: {{internalKey}}
+
+{
+  "code": "FREESHIP",
+  "customerId": "8f14e45f-ea1c-4f2e-9b3d-77c0d5a1b201",
+  "orderAmount": 10000
+}
+
+### Reserve mã FREESHIP cho một orderId (gọi lại cùng orderId sẽ idempotent)
+POST {{PromotionService_HostAddress}}/api/promotion/reserve
+Content-Type: application/json
+X-Internal-Key: {{internalKey}}
+
+{
+  "code": "FREESHIP",
+  "customerId": "8f14e45f-ea1c-4f2e-9b3d-77c0d5a1b201",
+  "orderId": "b1d9a6c4-3e57-4f80-9a2c-1e6f4b8d0c33",
+  "orderAmount": 65400
+}
+
+### Commit reservation (thay {{reservationId}} bằng kết quả reserve ở trên)
+POST {{PromotionService_HostAddress}}/api/promotion/reservations/{{reservationId}}/commit
+X-Internal-Key: {{internalKey}}
+
+### Release reservation
+POST {{PromotionService_HostAddress}}/api/promotion/reservations/{{reservationId}}/release
+X-Internal-Key: {{internalKey}}
+
+### Health
+GET {{PromotionService_HostAddress}}/health/live
 
 ###
+GET {{PromotionService_HostAddress}}/health/ready

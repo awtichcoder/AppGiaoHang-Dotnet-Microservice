@@ -1,0 +1,15 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: deliveryapp-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SQLSERVER_SA_PASSWORD}"
+    ports:
+      - "14330:1433"
+    volumes:
+      - deliveryapp_sql_data:/var/opt/mssql
+    restart: unless-stopped
+
+volumes:
+  deliveryapp_sql_data:
