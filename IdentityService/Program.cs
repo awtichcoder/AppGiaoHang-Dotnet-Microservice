@@ -26,8 +26,8 @@ builder.Services.AddIdentityMongoDbProvider<ApplicationUser, MongoRole>(identity
 },
 mongo =>
 {
-    // Đọc từ appsettings (ConnectionStrings) hoặc đọc trực tiếp từ biến môi trường (IdentityDB) trong file .env
-    mongo.ConnectionString = builder.Configuration.GetConnectionString("IdentityDB") ?? builder.Configuration["IdentityDB"];
+    // Ưu tiên đọc trực tiếp từ biến môi trường (IdentityDB) trong file .env trước, nếu không có mới dùng appsettings
+    mongo.ConnectionString = builder.Configuration["IdentityDB"] ?? builder.Configuration.GetConnectionString("IdentityDB");
 });
 
 // Cấu hình kiểm tra JWT Token
@@ -75,7 +75,8 @@ app.MapGet("/health/ready", () =>
 // kiểm tra connection MongoDB
 app.MapGet("/test-db", (IConfiguration config) => {
     try {
-        var client = new MongoDB.Driver.MongoClient(config.GetConnectionString("IdentityDb"));
+        var connectionString = config["IdentityDB"] ?? config.GetConnectionString("IdentityDB");
+        var client = new MongoDB.Driver.MongoClient(connectionString);
         var db = client.GetDatabase("DeliveryApp_Identity");
         var ping = new MongoDB.Bson.BsonDocument("ping", 1);
         db.RunCommand<MongoDB.Bson.BsonDocument>(ping);
