@@ -1,6 +1,17 @@
-@MapService_HostAddress = http://localhost:5241
+@MapService_HostAddress = http://localhost:6205
+@internalKey = deliveryapp-development-internal-key-change-before-production
 
-GET {{MapService_HostAddress}}/weatherforecast/
-Accept: application/json
+### Tính khoảng cách bằng khóa nội bộ
+POST {{MapService_HostAddress}}/api/map/route/quote
+Content-Type: application/json
+X-Internal-Key: {{internalKey}}
 
-###
+{
+  "pickupLatitude": 10.776889,
+  "pickupLongitude": 106.700806,
+  "dropoffLatitude": 10.762622,
+  "dropoffLongitude": 106.660172
+}
+
+### Health
+GET {{MapService_HostAddress}}/health/ready

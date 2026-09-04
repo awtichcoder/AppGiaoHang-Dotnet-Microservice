@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "DeliveryApp: Docker up",
+      "type": "shell",
+      "command": "docker compose up --build -d",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "DeliveryApp: Docker logs",
+      "type": "shell",
+      "command": "docker compose logs -f orderservice deliveryservice apigateway",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "DeliveryApp: Docker down",
+      "type": "shell",
+      "command": "docker compose down",
+      "problemMatcher": []
+    },
+    {
+      "label": "DeliveryApp: Build",
+      "type": "process",
+      "command": "dotnet",
+      "args": [ "build", "DeliveryApp.sln" ],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "DeliveryApp: Test",
+      "type": "process",
+      "command": "dotnet",
+      "args": [ "test", "DeliveryApp.sln" ],
+      "group": "test",
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

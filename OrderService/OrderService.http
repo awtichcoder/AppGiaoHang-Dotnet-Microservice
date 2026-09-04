@@ -1,6 +1,26 @@
-@OrderService_HostAddress = http://localhost:5005
+@gateway = http://localhost:6200
+@customerToken = paste-customer-jwt-here
 
-GET {{OrderService_HostAddress}}/weatherforecast/
-Accept: application/json
+GET {{gateway}}/health/order/ready
 
 ###
+
+POST {{gateway}}/api/order
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "pickupAddress": "1 Le Loi, Quan 1",
+  "dropoffAddress": "10 Nguyen Hue, Quan 1",
+  "pickupLocation": { "latitude": 10.7769, "longitude": 106.7009 },
+  "dropoffLocation": { "latitude": 10.7731, "longitude": 106.7041 },
+  "receiverPhone": "0900000000",
+  "promotionCode": "WELCOME",
+  "pointsToUse": 1000,
+  "clientRequestId": "{{$guid}}"
+}
+
+###
+
+GET {{gateway}}/api/order?page=1&pageSize=20
+Authorization: Bearer {{customerToken}}

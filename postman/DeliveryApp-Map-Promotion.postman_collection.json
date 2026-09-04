@@ -1,0 +1,199 @@
+{
+  "info": {
+    "name": "DeliveryApp - Nhom 3 (MapService + PromotionService)",
+    "description": "Collection test cho MapService (route/quote) va PromotionService (validate/reserve/commit/release). Doi bien internalKey/mapServiceUrl/promotionServiceUrl trong tab Variables cua collection neu can.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "mapServiceUrl", "value": "http://localhost:6205" },
+    { "key": "promotionServiceUrl", "value": "http://localhost:6207" },
+    { "key": "internalKey", "value": "deliveryapp-development-internal-key-change-before-production" },
+    { "key": "jwtToken", "value": "" },
+    { "key": "reservationId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "MapService",
+      "item": [
+        {
+          "name": "Route quote - X-Internal-Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Internal-Key", "value": "{{internalKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLatitude\": 10.776889,\n  \"pickupLongitude\": 106.700806,\n  \"dropoffLatitude\": 10.762622,\n  \"dropoffLongitude\": 106.660172\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{mapServiceUrl}}/api/map/route/quote"
+          }
+        },
+        {
+          "name": "Route quote - Bearer JWT",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLatitude\": 10.776889,\n  \"pickupLongitude\": 106.700806,\n  \"dropoffLatitude\": 10.762622,\n  \"dropoffLongitude\": 106.660172\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{mapServiceUrl}}/api/map/route/quote"
+          }
+        },
+        {
+          "name": "Route quote - toa do khong hop le (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Internal-Key", "value": "{{internalKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLatitude\": 999,\n  \"pickupLongitude\": 106.700806,\n  \"dropoffLatitude\": 10.762622,\n  \"dropoffLongitude\": 106.660172\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{mapServiceUrl}}/api/map/route/quote"
+          }
+        },
+        {
+          "name": "Health live",
+          "request": { "method": "GET", "header": [], "url": "{{mapServiceUrl}}/health/live" }
+        },
+        {
+          "name": "Health ready",
+          "request": { "method": "GET", "header": [], "url": "{{mapServiceUrl}}/health/ready" }
+        }
+      ]
+    },
+    {
+      "name": "PromotionService",
+      "item": [
+        {
+          "name": "Validate - FREESHIP hop le",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Internal-Key", "value": "{{internalKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"FREESHIP\",\n  \"customerId\": \"8f14e45f-ea1c-4f2e-9b3d-77c0d5a1b201\",\n  \"orderAmount\": 65400\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{promotionServiceUrl}}/api/promotion/validate"
+          }
+        },
+        {
+          "name": "Validate - chua dat gia tri toi thieu (valid=false)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Internal-Key", "value": "{{internalKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"FREESHIP\",\n  \"customerId\": \"8f14e45f-ea1c-4f2e-9b3d-77c0d5a1b201\",\n  \"orderAmount\": 10000\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{promotionServiceUrl}}/api/promotion/validate"
+          }
+        },
+        {
+          "name": "Validate - ma khong ton tai (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Internal-Key", "value": "{{internalKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"KHONGTONTAI\",\n  \"customerId\": \"8f14e45f-ea1c-4f2e-9b3d-77c0d5a1b201\",\n  \"orderAmount\": 65400\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{promotionServiceUrl}}/api/promotion/validate"
+          }
+        },
+        {
+          "name": "Reserve - FREESHIP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('reservationId', body.reservationId);",
+                  "    console.log('Da luu reservationId:', body.reservationId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Internal-Key", "value": "{{internalKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"FREESHIP\",\n  \"customerId\": \"8f14e45f-ea1c-4f2e-9b3d-77c0d5a1b201\",\n  \"orderId\": \"b1d9a6c4-3e57-4f80-9a2c-1e6f4b8d0c33\",\n  \"orderAmount\": 65400\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{promotionServiceUrl}}/api/promotion/reserve"
+          }
+        },
+        {
+          "name": "Commit reservation (dung reservationId vua luu)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Internal-Key", "value": "{{internalKey}}" }
+            ],
+            "url": "{{promotionServiceUrl}}/api/promotion/reservations/{{reservationId}}/commit"
+          }
+        },
+        {
+          "name": "Commit lai lan 2 - kiem tra idempotent",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Internal-Key", "value": "{{internalKey}}" }
+            ],
+            "url": "{{promotionServiceUrl}}/api/promotion/reservations/{{reservationId}}/commit"
+          }
+        },
+        {
+          "name": "Release reservation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Internal-Key", "value": "{{internalKey}}" }
+            ],
+            "url": "{{promotionServiceUrl}}/api/promotion/reservations/{{reservationId}}/release"
+          }
+        },
+        {
+          "name": "Health live",
+          "request": { "method": "GET", "header": [], "url": "{{promotionServiceUrl}}/health/live" }
+        },
+        {
+          "name": "Health ready",
+          "request": { "method": "GET", "header": [], "url": "{{promotionServiceUrl}}/health/ready" }
+        }
+      ]
+    }
+  ]
+}

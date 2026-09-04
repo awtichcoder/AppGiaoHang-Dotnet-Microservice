@@ -1,6 +1,34 @@
-@PromotionService_HostAddress = http://localhost:5154
+@PromotionService_HostAddress = http://localhost:6207
+@internalKey = deliveryapp-development-internal-key-change-before-production
+@customerId = 8f14e45f-ea1c-4f2e-9b3d-77c0d5a1b201
+@orderId = b1d9a6c4-3e57-4f80-9a2c-1e6f4b8d0c33
 
-GET {{PromotionService_HostAddress}}/weatherforecast/
-Accept: application/json
+### Kiểm tra FREESHIP
+POST {{PromotionService_HostAddress}}/api/promotion/validate
+Content-Type: application/json
+X-Internal-Key: {{internalKey}}
 
-###
+{
+  "code": "FREESHIP",
+  "customerId": "{{customerId}}",
+  "orderAmount": 65400
+}
+
+### Giữ mã cho đơn hàng (idempotent theo orderId)
+POST {{PromotionService_HostAddress}}/api/promotion/reserve
+Content-Type: application/json
+X-Internal-Key: {{internalKey}}
+
+{
+  "code": "FREESHIP",
+  "customerId": "{{customerId}}",
+  "orderId": "{{orderId}}",
+  "orderAmount": 65400
+}
+
+### Thay ID bằng reservationId nhận từ request reserve
+POST {{PromotionService_HostAddress}}/api/promotion/reservations/00000000-0000-0000-0000-000000000000/commit
+X-Internal-Key: {{internalKey}}
+
+### Health
+GET {{PromotionService_HostAddress}}/health/ready

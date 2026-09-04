@@ -1,0 +1,8 @@
+**/bin
+**/obj
+.git
+.vs
+.vscode
+.env
+TestResults
+README*.html
