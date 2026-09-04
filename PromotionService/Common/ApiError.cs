@@ -1,3 +1,3 @@
 namespace PromotionService.Common;
 
-public record ApiError(string Code, string Message, object? Details);
+public sealed record ApiError(string Code, string Message, object? Details = null);

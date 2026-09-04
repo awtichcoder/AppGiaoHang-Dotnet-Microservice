@@ -1,6 +1,6 @@
 namespace MapService.Contracts;
 
-public class RouteQuoteRequest
+public sealed class RouteQuoteRequest
 {
     public decimal PickupLatitude { get; set; }
     public decimal PickupLongitude { get; set; }

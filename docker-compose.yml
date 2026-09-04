@@ -1,14 +1,206 @@
+name: deliveryapp
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: deliveryapp-sqlserver
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "${SQLSERVER_SA_PASSWORD}"
+      MSSQL_SA_PASSWORD: "${SQLSERVER_SA_PASSWORD:?Copy .env.example to .env first}"
     ports:
-      - "14330:1433"
+      - "${SQLSERVER_PORT:-1433}:1433"
     volumes:
       - deliveryapp_sql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+    restart: unless-stopped
+
+  deliveryservice:
+    build:
+      context: .
+      args: { SERVICE_PROJECT: DeliveryService }
+    command: ["DeliveryService.dll"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      APPLY_MIGRATIONS: "true"
+      JWT_SECRET: "${JWT_SECRET:?Copy .env.example to .env first}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:?Copy .env.example to .env first}"
+      ConnectionStrings__DeliveryDatabase: "Server=sqlserver,1433;Database=DeliveryApp_Delivery;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ServiceUrls__OrderService: http://orderservice:8080
+      Matching__RadiusStepsKm__0: "3"
+      Matching__RadiusStepsKm__1: "5"
+      Matching__OfferTimeoutSeconds: "30"
+      Matching__MaxLocationAgeSeconds: "60"
+    ports: ["6201:8080"]
+    depends_on:
+      sqlserver: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  orderservice:
+    build:
+      context: .
+      args: { SERVICE_PROJECT: OrderService }
+    command: ["OrderService.dll"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      APPLY_MIGRATIONS: "true"
+      JWT_SECRET: "${JWT_SECRET:?Copy .env.example to .env first}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:?Copy .env.example to .env first}"
+      ConnectionStrings__OrderDatabase: "Server=sqlserver,1433;Database=DeliveryApp_Order;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ServiceUrls__DeliveryService: http://deliveryservice:8080
+      ServiceUrls__MapService: http://mapservice:8080
+      ServiceUrls__PromotionService: http://promotionservice:8080
+      DependencyMocks__LoyaltyEnabled: "true"
+    ports: ["6206:8080"]
+    depends_on:
+      sqlserver: { condition: service_healthy }
+      deliveryservice: { condition: service_healthy }
+      mapservice: { condition: service_healthy }
+      promotionservice: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  identityservice:
+    build:
+      context: .
+      args: { SERVICE_PROJECT: IdentityService }
+    command: ["IdentityService.dll"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      JWT_SECRET: "${JWT_SECRET}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY}"
+    ports: ["6203:8080"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  driverservice:
+    build:
+      context: .
+      args: { SERVICE_PROJECT: DriverService }
+    command: ["DriverService.dll"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      JWT_SECRET: "${JWT_SECRET}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY}"
+    ports: ["6202:8080"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  loyaltyservice:
+    build:
+      context: .
+      args: { SERVICE_PROJECT: LoyaltyService }
+    command: ["LoyaltyService.dll"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      JWT_SECRET: "${JWT_SECRET}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY}"
+    ports: ["6204:8080"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mapservice:
+    build:
+      context: .
+      args: { SERVICE_PROJECT: MapService }
+    command: ["MapService.dll"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      JWT_SECRET: "${JWT_SECRET:?Copy .env.example to .env first}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:?Copy .env.example to .env first}"
+    ports: ["6205:8080"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  promotionservice:
+    build:
+      context: .
+      args: { SERVICE_PROJECT: PromotionService }
+    command: ["PromotionService.dll"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      APPLY_MIGRATIONS: "true"
+      JWT_SECRET: "${JWT_SECRET:?Copy .env.example to .env first}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:?Copy .env.example to .env first}"
+      ConnectionStrings__PromotionDatabase: "Server=sqlserver,1433;Database=DeliveryApp_Promotion;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+    ports: ["6207:8080"]
+    depends_on:
+      sqlserver: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  apigateway:
+    build:
+      context: .
+      args: { SERVICE_PROJECT: ApiGateway }
+    command: ["ApiGateway.dll"]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      USE_HTTPS_REDIRECTION: "false"
+      ReverseProxy__Clusters__identity__Destinations__service__Address: http://identityservice:8080/
+      ReverseProxy__Clusters__delivery__Destinations__service__Address: http://deliveryservice:8080/
+      ReverseProxy__Clusters__driver__Destinations__service__Address: http://driverservice:8080/
+      ReverseProxy__Clusters__loyalty__Destinations__service__Address: http://loyaltyservice:8080/
+      ReverseProxy__Clusters__map__Destinations__service__Address: http://mapservice:8080/
+      ReverseProxy__Clusters__order__Destinations__service__Address: http://orderservice:8080/
+      ReverseProxy__Clusters__promotion__Destinations__service__Address: http://promotionservice:8080/
+    ports: ["6200:8080"]
+    depends_on:
+      identityservice: { condition: service_healthy }
+      deliveryservice: { condition: service_healthy }
+      orderservice: { condition: service_healthy }
+      driverservice: { condition: service_healthy }
+      loyaltyservice: { condition: service_healthy }
+      mapservice: { condition: service_healthy }
+      promotionservice: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
 volumes:

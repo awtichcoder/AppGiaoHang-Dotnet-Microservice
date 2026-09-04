@@ -1,6 +1,6 @@
 namespace PromotionService.Entities;
 
-public class Promotion
+public sealed class Promotion
 {
     public Guid Id { get; set; }
     public string Code { get; set; } = string.Empty;
@@ -15,6 +15,5 @@ public class Promotion
     public int? UsageLimitTotal { get; set; }
     public int UsageCount { get; set; }
     public int? UsageLimitPerCustomer { get; set; }
-
     public ICollection<PromotionReservation> Reservations { get; set; } = new List<PromotionReservation>();
 }

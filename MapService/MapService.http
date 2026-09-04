@@ -1,43 +1,17 @@
 @MapService_HostAddress = http://localhost:6205
+@internalKey = deliveryapp-development-internal-key-change-before-production
 
-### Route quote - cần Bearer token hợp lệ (role bất kỳ) hoặc header X-Internal-Key
+### Tính khoảng cách bằng khóa nội bộ
 POST {{MapService_HostAddress}}/api/map/route/quote
 Content-Type: application/json
-Authorization: Bearer <token>
+X-Internal-Key: {{internalKey}}
 
 {
   "pickupLatitude": 10.776889,
-  "pickupLongitude": 106.700806,
-  "dropoffLatitude": 10.762622,
-  "dropoffLongitude": 106.660172
-}
-
-### Route quote qua internal key (OrderService/DeliveryService gọi)
-POST {{MapService_HostAddress}}/api/map/route/quote
-Content-Type: application/json
-X-Internal-Key: dev-only-internal-key-change-me
-
-{
-  "pickupLatitude": 10.776889,
-  "pickupLongitude": 106.700806,
-  "dropoffLatitude": 10.762622,
-  "dropoffLongitude": 106.660172
-}
-
-### Toạ độ không hợp lệ -> 400 INVALID_COORDINATES
-POST {{MapService_HostAddress}}/api/map/route/quote
-Content-Type: application/json
-X-Internal-Key: dev-only-internal-key-change-me
-
-{
-  "pickupLatitude": 999,
   "pickupLongitude": 106.700806,
   "dropoffLatitude": 10.762622,
   "dropoffLongitude": 106.660172
 }
 
 ### Health
-GET {{MapService_HostAddress}}/health/live
-
-###
 GET {{MapService_HostAddress}}/health/ready

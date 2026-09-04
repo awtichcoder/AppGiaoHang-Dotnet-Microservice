@@ -1,6 +1,6 @@
 namespace PromotionService.Entities;
 
-public class PromotionReservation
+public sealed class PromotionReservation
 {
     public Guid Id { get; set; }
     public Guid PromotionId { get; set; }

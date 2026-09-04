@@ -17,5 +17,7 @@ if (app.Environment.IsDevelopment())
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapGet("/health/live", () => Results.Ok(new { status = "Healthy", service = "LoyaltyService" }));
+app.MapGet("/health/ready", () => Results.Ok(new { status = "Ready", dependencies = Array.Empty<object>() }));
 
 app.Run();

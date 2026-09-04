@@ -1,8 +1,3 @@
 namespace PromotionService.Entities;
 
-public enum PromotionReservationStatus
-{
-    RESERVED,
-    COMMITTED,
-    RELEASED
-}
+public enum PromotionReservationStatus { RESERVED, COMMITTED, RELEASED }

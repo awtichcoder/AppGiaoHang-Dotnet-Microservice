@@ -6,7 +6,10 @@ builder.Services
 
 var app = builder.Build();
 
-app.UseHttpsRedirection();
+if (builder.Configuration.GetValue("USE_HTTPS_REDIRECTION", true))
+{
+    app.UseHttpsRedirection();
+}
 
 app.MapGet("/health/live", () =>
 {
@@ -16,6 +19,7 @@ app.MapGet("/health/live", () =>
         service = "ApiGateway"
     });
 });
+app.MapGet("/health/ready", () => Results.Ok(new { status = "Ready", dependencies = new[] { "ReverseProxy" } }));
 
 app.MapReverseProxy();
 

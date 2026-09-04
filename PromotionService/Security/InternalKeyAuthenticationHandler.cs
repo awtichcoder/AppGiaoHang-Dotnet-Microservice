@@ -1,41 +1,34 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 
 namespace PromotionService.Security;
 
-// Xác thực service-to-service bằng header X-Internal-Key (INTERNAL_API_KEY).
-public class InternalKeyAuthenticationHandler : AuthenticationHandler<InternalKeyAuthenticationOptions>
+public sealed class InternalKeyAuthenticationHandler(
+    IOptionsMonitor<InternalKeyAuthenticationOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder) : AuthenticationHandler<InternalKeyAuthenticationOptions>(options, logger, encoder)
 {
     public const string SchemeName = "InternalKey";
-    private const string HeaderName = "X-Internal-Key";
-
-    public InternalKeyAuthenticationHandler(
-        IOptionsMonitor<InternalKeyAuthenticationOptions> options,
-        ILoggerFactory logger,
-        UrlEncoder encoder)
-        : base(options, logger, encoder)
-    {
-    }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue(HeaderName, out var providedKey))
-        {
+        if (!Request.Headers.TryGetValue("X-Internal-Key", out var providedKey))
             return Task.FromResult(AuthenticateResult.NoResult());
-        }
 
-        if (string.IsNullOrEmpty(Options.ExpectedKey) || providedKey.ToString() != Options.ExpectedKey)
-        {
+        var provided = Encoding.UTF8.GetBytes(providedKey.ToString());
+        var expected = Encoding.UTF8.GetBytes(Options.ExpectedKey);
+        var valid = expected.Length > 0 && provided.Length == expected.Length
+            && CryptographicOperations.FixedTimeEquals(provided, expected);
+
+        if (!valid)
             return Task.FromResult(AuthenticateResult.Fail("X-Internal-Key không hợp lệ"));
-        }
 
-        var claims = new[] { new Claim(ClaimTypes.Role, "INTERNAL_SERVICE") };
-        var identity = new ClaimsIdentity(claims, SchemeName);
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Role, "INTERNAL_SERVICE")], SchemeName);
         var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, SchemeName);
-
-        return Task.FromResult(AuthenticateResult.Success(ticket));
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, SchemeName)));
     }
 }

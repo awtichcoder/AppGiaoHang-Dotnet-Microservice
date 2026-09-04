@@ -1,34 +1,23 @@
 namespace MapService.Common;
 
-public class ExceptionHandlingMiddleware
+public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ExceptionHandlingMiddleware> _logger;
-
-    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
-
     public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await _next(context);
+            await next(context);
         }
-        catch (ApiException ex)
+        catch (ApiException exception)
         {
-            context.Response.ContentType = "application/json";
-            context.Response.StatusCode = ex.StatusCode;
-            await context.Response.WriteAsJsonAsync(new ApiError(ex.Code, ex.Message, ex.Details));
+            context.Response.StatusCode = exception.StatusCode;
+            await context.Response.WriteAsJsonAsync(new ApiError(exception.Code, exception.Message, exception.Details));
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Unhandled exception");
-            context.Response.ContentType = "application/json";
+            logger.LogError(exception, "Unhandled MapService error");
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            await context.Response.WriteAsJsonAsync(new ApiError("INTERNAL_ERROR", "Đã có lỗi xảy ra phía server", null));
+            await context.Response.WriteAsJsonAsync(new ApiError("INTERNAL_ERROR", "Hệ thống đang gặp lỗi."));
         }
     }
 }

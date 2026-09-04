@@ -1,6 +1,6 @@
 namespace PromotionService.Contracts;
 
-public class ReservePromotionRequest
+public sealed class ReservePromotionRequest
 {
     public string Code { get; set; } = string.Empty;
     public Guid CustomerId { get; set; }
@@ -8,7 +8,7 @@ public class ReservePromotionRequest
     public int OrderAmount { get; set; }
 }
 
-public class ReservePromotionResponse
+public sealed class ReservePromotionResponse
 {
     public Guid ReservationId { get; set; }
     public int DiscountAmount { get; set; }

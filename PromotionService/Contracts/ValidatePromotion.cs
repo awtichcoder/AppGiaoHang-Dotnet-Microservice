@@ -1,13 +1,13 @@
 namespace PromotionService.Contracts;
 
-public class ValidatePromotionRequest
+public sealed class ValidatePromotionRequest
 {
     public string Code { get; set; } = string.Empty;
     public Guid CustomerId { get; set; }
     public int OrderAmount { get; set; }
 }
 
-public class ValidatePromotionResponse
+public sealed class ValidatePromotionResponse
 {
     public bool Valid { get; set; }
     public int DiscountAmount { get; set; }

@@ -12,8 +12,8 @@ using PromotionService.Data;
 namespace PromotionService.Migrations
 {
     [DbContext(typeof(PromotionDbContext))]
-    [Migration("20260830101453_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260904110448_InitialPromotion")]
+    partial class InitialPromotion
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,7 +33,8 @@ namespace PromotionService.Migrations
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");

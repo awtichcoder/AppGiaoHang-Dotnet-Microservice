@@ -7,7 +7,7 @@
   "variable": [
     { "key": "mapServiceUrl", "value": "http://localhost:6205" },
     { "key": "promotionServiceUrl", "value": "http://localhost:6207" },
-    { "key": "internalKey", "value": "dev-only-internal-key-change-me" },
+    { "key": "internalKey", "value": "deliveryapp-development-internal-key-change-before-production" },
     { "key": "jwtToken", "value": "" },
     { "key": "reservationId", "value": "" }
   ],

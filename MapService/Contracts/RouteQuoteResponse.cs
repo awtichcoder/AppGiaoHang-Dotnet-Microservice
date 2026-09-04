@@ -1,6 +1,6 @@
 namespace MapService.Contracts;
 
-public class RouteQuoteResponse
+public sealed class RouteQuoteResponse
 {
     public decimal DistanceKm { get; set; }
     public decimal DurationMin { get; set; }
