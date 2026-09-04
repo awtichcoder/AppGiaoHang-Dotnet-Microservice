@@ -147,6 +147,39 @@ Thiết lập:
 
 Sau đó chạy bằng `Ctrl + F5`.
 
+## Database cho PromotionService (SQL Server qua Docker)
+
+PromotionService dùng SQL Server, chạy qua Docker container thay vì cài SQL Server
+trực tiếp trên máy, để mọi thành viên có cấu hình giống nhau. File `docker-compose.yml`
+ở gốc repo định nghĩa container này (map ra cổng `14330` trên máy host để tránh đụng
+SQL Server có sẵn ở cổng 1433 mặc định).
+
+Lần đầu clone repo, mỗi người tự làm các bước sau trên máy mình:
+
+1. Cài Docker Desktop nếu chưa có, mở lên và đợi báo đang chạy.
+2. Copy `.env.example` thành `.env`, tự điền một mật khẩu bất kỳ đủ mạnh cho
+   `SQLSERVER_SA_PASSWORD` (không cần trùng với người khác, chỉ cần trùng với
+   connection string bạn để trong `PromotionService/appsettings.Development.json`
+   trên máy mình).
+3. Dựng container SQL Server:
+   ```powershell
+   docker compose up -d sqlserver
+   ```
+4. Cài công cụ EF Core CLI nếu chưa có (`dotnet tool install --global dotnet-ef`),
+   nên dùng bản khớp với version EF Core của project (hiện là 9.x) để tránh cảnh báo
+   lệch version.
+5. Áp migration để tạo bảng và dữ liệu mẫu (2 mã khuyến mại `FREESHIP`, `GIAM10`
+   được seed sẵn trong migration, không cần tự thêm tay):
+   ```powershell
+   dotnet ef database update --project PromotionService
+   ```
+
+Mỗi người có một database vật lý riêng trên máy mình — không ai cần kết nối vào
+Docker của người khác. Nếu cổng `1433` mặc định bị SQL Server khác trên máy chiếm
+dụng (kiểm tra bằng `netstat -ano | findstr :1433`), đổi số cổng ở `ports:` trong
+`docker-compose.yml` và ở connection string cho khớp nhau, không cần đụng tới SQL
+Server có sẵn.
+
 ## Kiểm tra hệ thống
 
 Kiểm tra trực tiếp Gateway:
