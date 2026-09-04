@@ -1,6 +1,15 @@
 name: deliveryapp
 
 services:
+  mongodb:
+    image: mongo:7.0
+    container_name: delivery_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
@@ -205,3 +214,4 @@ services:
 
 volumes:
   deliveryapp_sql_data:
+  mongodb_data:
