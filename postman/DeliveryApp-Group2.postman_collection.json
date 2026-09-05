@@ -1,0 +1,148 @@
+{
+  "info": {
+    "name": "DeliveryApp - Group 2 E2E",
+    "description": "Chạy theo thứ tự. Sau Create Order, chờ 2-3 giây rồi gọi Driver - My Offers. Có thể gọi lại Matching Status/My Offers trong lúc worker đang tìm tài xế.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:6200" },
+    { "key": "customerToken", "value": "" },
+    { "key": "driverToken", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "offerId", "value": "" },
+    { "key": "deliveryId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1 - Login Customer",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/identity/login",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"dev@deliveryapp.local\",\n  \"password\": \"Dev123!\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Login customer 200', () => pm.response.to.have.status(200));",
+        "pm.collectionVariables.set('customerToken', pm.response.json().accessToken);"
+      ] } }]
+    },
+    {
+      "name": "2 - Login Driver",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/identity/login",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"driver@deliveryapp.local\",\n  \"password\": \"Driver123!\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Login driver 200', () => pm.response.to.have.status(200));",
+        "pm.collectionVariables.set('driverToken', pm.response.json().accessToken);"
+      ] } }]
+    },
+    {
+      "name": "3 - Driver Available",
+      "request": {
+        "method": "PATCH",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driverToken}}", "type": "string" }] },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/driver/me/availability",
+        "body": { "mode": "raw", "raw": "{\n  \"availabilityStatus\": \"AVAILABLE\"\n}" }
+      }
+    },
+    {
+      "name": "4 - Driver Location",
+      "request": {
+        "method": "PUT",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driverToken}}", "type": "string" }] },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/driver/me/location",
+        "body": { "mode": "raw", "raw": "{\n  \"latitude\": 10.776889,\n  \"longitude\": 106.700806,\n  \"accuracyM\": 5,\n  \"recordedAt\": \"{{$isoTimestamp}}\"\n}" }
+      }
+    },
+    {
+      "name": "5 - Loyalty Me",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/loyalty/me"
+      }
+    },
+    {
+      "name": "6 - Create Order",
+      "request": {
+        "method": "POST",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }] },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/order",
+        "body": { "mode": "raw", "raw": "{\n  \"pickupAddress\": \"72 Le Thanh Ton, Quan 1\",\n  \"dropoffAddress\": \"18 Phan Xich Long, Phu Nhuan\",\n  \"pickupLocation\": { \"latitude\": 10.776889, \"longitude\": 106.700806 },\n  \"dropoffLocation\": { \"latitude\": 10.762622, \"longitude\": 106.660172 },\n  \"receiverPhone\": \"0912345678\",\n  \"promotionCode\": null,\n  \"pointsToUse\": 0,\n  \"clientRequestId\": \"{{$guid}}\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Create order 201', () => pm.response.to.have.status(201));",
+        "pm.collectionVariables.set('orderId', pm.response.json().orderId);"
+      ] } }]
+    },
+    {
+      "name": "7 - Matching Status",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/delivery/order/{{orderId}}/matching-status"
+      }
+    },
+    {
+      "name": "8 - Driver My Offers",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driverToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/delivery/offers/me?page=1&pageSize=20"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "const item = pm.response.json().items.find(x => x.orderId === pm.collectionVariables.get('orderId'));",
+        "pm.test('Offer của đơn hiện tại tồn tại', () => pm.expect(item).to.exist);",
+        "if (item) { pm.collectionVariables.set('offerId', item.offerId); pm.collectionVariables.set('deliveryId', item.deliveryId); }"
+      ] } }]
+    },
+    {
+      "name": "9 - Accept Offer",
+      "request": {
+        "method": "POST",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driverToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/delivery/offers/{{offerId}}/accept"
+      }
+    },
+    {
+      "name": "10 - Pickup",
+      "request": {
+        "method": "POST",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driverToken}}", "type": "string" }] },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/delivery/{{deliveryId}}/pickup",
+        "body": { "mode": "raw", "raw": "{\n  \"gpsLatitude\": 10.776889,\n  \"gpsLongitude\": 106.700806\n}" }
+      }
+    },
+    {
+      "name": "11 - Start Delivery",
+      "request": {
+        "method": "POST",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driverToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/delivery/{{deliveryId}}/start"
+      }
+    },
+    {
+      "name": "12 - Complete",
+      "request": {
+        "method": "POST",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driverToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/delivery/{{deliveryId}}/complete"
+      }
+    },
+    {
+      "name": "13 - Order List",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/order?page=1&pageSize=20"
+      }
+    }
+  ]
+}

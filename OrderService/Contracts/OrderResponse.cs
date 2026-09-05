@@ -26,4 +26,5 @@ public class OrderResponse
     public int Version { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+    public string RefundStatus { get; set; } = "NOT_APPLICABLE";
 }

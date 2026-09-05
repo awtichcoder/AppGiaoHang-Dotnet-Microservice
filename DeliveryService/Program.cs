@@ -14,7 +14,6 @@ builder.Services.Configure<DeliveryFeeOptions>(builder.Configuration.GetSection(
 builder.Services.Configure<MatchingOptions>(builder.Configuration.GetSection("Matching"));
 builder.Services.AddScoped<IDeliveryQuoteService, DeliveryQuoteService>();
 builder.Services.AddScoped<IDeliveryWorkflowService, DeliveryWorkflowService>();
-builder.Services.AddScoped<IDriverDirectoryClient, ConfiguredDriverDirectoryClient>();
 builder.Services.AddHostedService<DeliveryMatchingWorker>();
 builder.Services.AddHostedService<DeliveryOutboxWorker>();
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
@@ -30,9 +29,21 @@ builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
 builder.Services.AddOpenApi();
 
 var orderServiceUrl = builder.Configuration["ServiceUrls:OrderService"] ?? "http://orderservice:8080";
+var driverServiceUrl = builder.Configuration["ServiceUrls:DriverService"] ?? "http://driverservice:8080";
+var loyaltyServiceUrl = builder.Configuration["ServiceUrls:LoyaltyService"] ?? "http://loyaltyservice:8080";
 builder.Services.AddHttpClient<IOrderStatusClient, OrderStatusClient>(client =>
 {
     client.BaseAddress = new Uri(orderServiceUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient<IDriverDirectoryClient, HttpDriverDirectoryClient>(client =>
+{
+    client.BaseAddress = new Uri(driverServiceUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient<ILoyaltyClient, LoyaltyClient>(client =>
+{
+    client.BaseAddress = new Uri(loyaltyServiceUrl.TrimEnd('/') + "/");
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 

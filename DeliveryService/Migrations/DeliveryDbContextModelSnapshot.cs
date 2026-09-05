@@ -107,6 +107,9 @@ namespace DeliveryService.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<long>("TotalFee")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -184,6 +187,10 @@ namespace DeliveryService.Migrations
                     b.Property<decimal>("RadiusKm")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("RejectReasonCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("RespondedAt")
                         .HasColumnType("datetime2");

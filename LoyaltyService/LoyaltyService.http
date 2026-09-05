@@ -1,6 +1,18 @@
-@LoyaltyService_HostAddress = http://localhost:5100
+@gateway = http://localhost:6200
+@customerToken = paste-customer-access-token-here
 
-GET {{LoyaltyService_HostAddress}}/weatherforecast/
-Accept: application/json
+GET {{gateway}}/api/loyalty/me
+Authorization: Bearer {{customerToken}}
+
+###
+
+POST {{gateway}}/api/loyalty/preview
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "points": 20,
+  "orderAmount": 59520
+}
 
 ###

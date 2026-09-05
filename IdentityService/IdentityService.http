@@ -1,6 +1,17 @@
-@IdentityService_HostAddress = http://localhost:5030
+@gateway = http://localhost:6200
+@accessToken = paste-customer-access-token-here
 
-GET {{IdentityService_HostAddress}}/weatherforecast/
-Accept: application/json
+POST {{gateway}}/api/identity/login
+Content-Type: application/json
+
+{
+  "email": "dev@deliveryapp.local",
+  "password": "Dev123!"
+}
+
+###
+
+GET {{gateway}}/api/identity/me
+Authorization: Bearer {{accessToken}}
 
 ###

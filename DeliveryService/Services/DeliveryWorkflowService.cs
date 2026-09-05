@@ -13,7 +13,8 @@ namespace DeliveryService.Services;
 public sealed class DeliveryWorkflowService(
     DeliveryDbContext db,
     IDriverDirectoryClient drivers,
-    IOptions<MatchingOptions> matchingOptions) : IDeliveryWorkflowService
+    IOptions<MatchingOptions> matchingOptions,
+    ILogger<DeliveryWorkflowService> logger) : IDeliveryWorkflowService
 {
     private readonly MatchingOptions _matching = matchingOptions.Value;
 
@@ -34,6 +35,7 @@ public sealed class DeliveryWorkflowService(
             DropoffLatitude = request.DropoffLocation.Latitude,
             DropoffLongitude = request.DropoffLocation.Longitude,
             OrderVersion = request.OrderVersion,
+            TotalFee = request.TotalFee,
             CurrentRadiusKm = _matching.RadiusStepsKm.FirstOrDefault(3),
             SearchStartedAt = DateTime.UtcNow,
             Status = DeliveryStatus.SEARCHING
@@ -49,13 +51,15 @@ public sealed class DeliveryWorkflowService(
         return ToResponse(delivery, includePhone: true);
     }
 
-    public async Task<IReadOnlyList<DeliveryOfferResponse>> GetMyOffersAsync(Guid driverId, CancellationToken cancellationToken)
+    public async Task<PagedResponse<DeliveryOfferResponse>> GetMyOffersAsync(
+        Guid driverId, int page, int pageSize, CancellationToken cancellationToken)
     {
+        if (page < 1 || pageSize is < 1 or > 100)
+            throw new ApiException(400, "INVALID_PAGINATION", "page phải >= 1 và pageSize trong khoảng 1..100.");
         var now = DateTime.UtcNow;
-        var rows = await (from offer in db.DeliveryOffers.AsNoTracking()
+        var query = from offer in db.DeliveryOffers.AsNoTracking()
                           join delivery in db.Deliveries.AsNoTracking() on offer.DeliveryId equals delivery.DeliveryId
                           where offer.DriverId == driverId && offer.Status == DeliveryOfferStatus.OFFERED && offer.ExpiresAt > now
-                          orderby offer.ExpiresAt
                           select new DeliveryOfferResponse
                           {
                               OfferId = offer.OfferId,
@@ -66,12 +70,23 @@ public sealed class DeliveryWorkflowService(
                               DistanceToPickupKm = offer.DistanceKm,
                               RadiusKm = offer.RadiusKm,
                               Status = offer.Status.ToString(),
-                              ExpiresAt = offer.ExpiresAt
-                          }).ToListAsync(cancellationToken);
-        return rows;
+                              ExpiresAt = offer.ExpiresAt,
+                              SentAt = offer.OfferedAt,
+                              IncomeEstimate = (long)Math.Round(delivery.TotalFee * 0.8m, MidpointRounding.AwayFromZero)
+                          };
+        var total = await query.CountAsync(cancellationToken);
+        var rows = await query.OrderBy(x => x.ExpiresAt).Skip((page - 1) * pageSize).Take(pageSize)
+            .ToListAsync(cancellationToken);
+        return new PagedResponse<DeliveryOfferResponse>
+        {
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = total,
+            Items = rows
+        };
     }
 
-    public async Task<DeliveryResponse> AcceptOfferAsync(Guid offerId, Guid driverId, CancellationToken cancellationToken)
+    public async Task<AcceptOfferResponse> AcceptOfferAsync(Guid offerId, Guid driverId, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var offer = await db.DeliveryOffers.FirstOrDefaultAsync(x => x.OfferId == offerId && x.DriverId == driverId, cancellationToken)
@@ -80,30 +95,60 @@ public sealed class DeliveryWorkflowService(
         if (offer.Status != DeliveryOfferStatus.OFFERED || offer.ExpiresAt <= DateTime.UtcNow || delivery.Status != DeliveryStatus.SEARCHING)
             throw new ApiException(409, "OFFER_NOT_AVAILABLE", "Offer đã hết hạn hoặc đã có tài xế khác nhận.");
 
-        offer.Status = DeliveryOfferStatus.ACCEPTED;
-        offer.RespondedAt = DateTime.UtcNow;
-        delivery.DriverId = driverId;
-        delivery.Status = DeliveryStatus.ASSIGNED;
-        delivery.AssignedAt = DateTime.UtcNow;
-        delivery.SearchEndedAt = DateTime.UtcNow;
-        delivery.UpdatedAt = DateTime.UtcNow;
-        delivery.Version++;
-        EnqueueOrderStatus(delivery, DeliveryStatus.ASSIGNED);
-        EnqueueDriverStatus(delivery, "DriverBusy");
-        await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return ToResponse(delivery, includePhone: true);
+        await drivers.MarkBusyAsync(driverId, delivery.DeliveryId, delivery.OrderId, cancellationToken);
+        try
+        {
+            offer.Status = DeliveryOfferStatus.ACCEPTED;
+            offer.RespondedAt = DateTime.UtcNow;
+            delivery.DriverId = driverId;
+            delivery.Status = DeliveryStatus.ASSIGNED;
+            delivery.AssignedAt = DateTime.UtcNow;
+            delivery.SearchEndedAt = DateTime.UtcNow;
+            delivery.UpdatedAt = DateTime.UtcNow;
+            delivery.Version++;
+            EnqueueOrderStatus(delivery, DeliveryStatus.ASSIGNED);
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            try
+            {
+                await drivers.MarkAvailableAsync(driverId, delivery.DeliveryId, delivery.OrderId, cancellationToken);
+            }
+            catch (Exception compensationException)
+            {
+                logger.LogError(compensationException,
+                    "Không thể hoàn tác trạng thái BUSY của tài xế {DriverId} cho delivery {DeliveryId}",
+                    driverId, delivery.DeliveryId);
+            }
+            throw;
+        }
+        return new AcceptOfferResponse
+        {
+            OfferId = offer.OfferId,
+            DeliveryId = delivery.DeliveryId,
+            Status = offer.Status.ToString()
+        };
     }
 
-    public async Task RejectOfferAsync(Guid offerId, Guid driverId, CancellationToken cancellationToken)
+    public async Task<RejectOfferResponse> RejectOfferAsync(
+        Guid offerId, Guid driverId, string reasonCode, CancellationToken cancellationToken)
     {
         var offer = await db.DeliveryOffers.FirstOrDefaultAsync(x => x.OfferId == offerId && x.DriverId == driverId, cancellationToken)
             ?? throw new ApiException(404, "OFFER_NOT_FOUND", "Không tìm thấy offer.");
         if (offer.Status != DeliveryOfferStatus.OFFERED)
             throw new ApiException(409, "OFFER_NOT_AVAILABLE", "Offer không còn hiệu lực.");
         offer.Status = DeliveryOfferStatus.REJECTED;
+        offer.RejectReasonCode = reasonCode;
         offer.RespondedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
+        return new RejectOfferResponse
+        {
+            OfferId = offer.OfferId,
+            OfferStatus = offer.Status.ToString(),
+            ReasonCode = reasonCode
+        };
     }
 
     public async Task<DeliveryResponse> ChangeDriverStageAsync(Guid deliveryId, Guid driverId, string action, CancellationToken cancellationToken)
@@ -142,7 +187,7 @@ public sealed class DeliveryWorkflowService(
             db.OutboxMessages.Add(new OutboxMessage
             {
                 Type = "LoyaltyEarn",
-                Payload = JsonSerializer.Serialize(new { delivery.OrderId, delivery.CustomerId })
+                Payload = JsonSerializer.Serialize(new { delivery.OrderId, delivery.CustomerId, Amount = delivery.TotalFee })
             });
             EnqueueDriverStatus(delivery, "DriverAvailable");
         }
@@ -154,6 +199,18 @@ public sealed class DeliveryWorkflowService(
     {
         var delivery = await db.Deliveries.FirstOrDefaultAsync(x => x.OrderId == orderId, cancellationToken)
             ?? throw new ApiException(404, "DELIVERY_NOT_FOUND", "Không tìm thấy delivery của đơn.");
+        return await CancelAsync(delivery, cancellationToken);
+    }
+
+    public async Task<DeliveryResponse> CancelByDeliveryIdAsync(Guid deliveryId, CancellationToken cancellationToken)
+    {
+        var delivery = await db.Deliveries.FirstOrDefaultAsync(x => x.DeliveryId == deliveryId, cancellationToken)
+            ?? throw new ApiException(404, "DELIVERY_NOT_FOUND", "Không tìm thấy delivery.");
+        return await CancelAsync(delivery, cancellationToken);
+    }
+
+    private async Task<DeliveryResponse> CancelAsync(Delivery delivery, CancellationToken cancellationToken)
+    {
         if (delivery.Status is DeliveryStatus.CANCELLED or DeliveryStatus.COMPLETED or DeliveryStatus.NO_DRIVER_FOUND)
             return ToResponse(delivery, includePhone: true);
         if (delivery.Status is DeliveryStatus.PICKED_UP or DeliveryStatus.DELIVERING)
@@ -184,12 +241,19 @@ public sealed class DeliveryWorkflowService(
         if (delivery is null) return null;
         EnsureCanRead(delivery, actorId, role);
         var invited = await db.DeliveryOffers.CountAsync(x => x.DeliveryId == delivery.DeliveryId, cancellationToken);
+        var candidates = await db.DeliveryCandidates.CountAsync(x => x.DeliveryId == delivery.DeliveryId, cancellationToken);
+        var remaining = await db.DeliveryCandidates.CountAsync(
+            x => x.DeliveryId == delivery.DeliveryId && !x.Invited, cancellationToken);
         return new MatchingStatusResponse
         {
             OrderId = orderId,
             Status = delivery.Status.ToString(),
+            SearchStatus = delivery.Status.ToString(),
             CurrentRadiusKm = delivery.CurrentRadiusKm,
             InvitedDrivers = invited,
+            AttemptCount = invited,
+            CandidateCount = candidates,
+            RemainingCandidateCount = remaining,
             SearchStartedAt = delivery.SearchStartedAt,
             SearchEndedAt = delivery.SearchEndedAt
         };
@@ -212,7 +276,8 @@ public sealed class DeliveryWorkflowService(
             DriverId = delivery.DriverId.Value,
             Latitude = location.Latitude,
             Longitude = location.Longitude,
-            RecordedAt = location.RecordedAt
+            RecordedAt = location.RecordedAt,
+            AccuracyM = location.AccuracyM
         };
     }
 
@@ -254,7 +319,13 @@ public sealed class DeliveryWorkflowService(
         CurrentRadiusKm = delivery.CurrentRadiusKm,
         SearchStartedAt = delivery.SearchStartedAt,
         SearchEndedAt = delivery.SearchEndedAt,
-        Version = delivery.Version
+        Version = delivery.Version,
+        TotalFee = delivery.TotalFee,
+        AssignedAt = delivery.AssignedAt,
+        PickedUpAt = delivery.PickedUpAt,
+        DeliveringAt = delivery.DeliveringAt,
+        CompletedAt = delivery.CompletedAt,
+        CancelledAt = delivery.CancelledAt
     };
 
     public sealed record OrderStatusPayload(Guid OrderId, string Status, int Version, Guid? DriverId);

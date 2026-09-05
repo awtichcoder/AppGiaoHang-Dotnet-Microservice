@@ -14,6 +14,7 @@ public class Delivery
     public string DropoffAddress { get; set; } = string.Empty;
     public string ReceiverPhone { get; set; } = string.Empty;
     public int OrderVersion { get; set; } = 1;
+    public long TotalFee { get; set; }
     public int SearchRadiusIndex { get; set; }
 
     public decimal PickupLatitude { get; set; }

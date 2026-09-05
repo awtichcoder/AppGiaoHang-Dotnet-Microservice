@@ -69,7 +69,9 @@ public sealed class DeliveryMatchingWorker(
                         var alreadyKnown = await db.DeliveryCandidates.Where(x => x.DeliveryId == delivery.DeliveryId)
                             .Select(x => x.DriverId).ToListAsync(cancellationToken);
                         var nearby = await drivers.GetEligibleDriversAsync(delivery.PickupLatitude, delivery.PickupLongitude, radius, cancellationToken);
-                        var shuffled = nearby.Where(x => x.DistanceKm > previousRadius && x.DistanceKm <= radius && !alreadyKnown.Contains(x.DriverId))
+                        var shuffled = nearby.Where(x => DeliveryMatchingRules.IsInRadiusStep(
+                                x.DistanceKm, previousRadius, radius, delivery.SearchRadiusIndex == 0)
+                                && !alreadyKnown.Contains(x.DriverId))
                             .OrderBy(_ => Random.Shared.Next()).ToList();
                         for (var index = 0; index < shuffled.Count; index++)
                         {

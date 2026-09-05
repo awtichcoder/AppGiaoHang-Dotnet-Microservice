@@ -79,7 +79,8 @@ public sealed class OrderService(
                 ReceiverPhone = order.ReceiverPhone,
                 PickupLocation = request.PickupLocation,
                 DropoffLocation = request.DropoffLocation,
-                OrderVersion = order.Version
+                OrderVersion = order.Version,
+                TotalFee = order.TotalFee
             })
         });
 
@@ -101,10 +102,11 @@ public sealed class OrderService(
         return ToResponse(order);
     }
 
-    public async Task<IReadOnlyList<OrderResponse>> GetOrdersAsync(Guid actorId, string role, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedResponse<OrderResponse>> GetOrdersAsync(
+        Guid actorId, string role, int page, int pageSize, string? status, CancellationToken cancellationToken = default)
     {
-        page = Math.Max(page, 1);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        if (page < 1 || pageSize is < 1 or > 100)
+            throw new ApiException(400, "INVALID_PAGINATION", "page phải >= 1 và pageSize trong khoảng 1..100.");
         var query = db.Orders.AsNoTracking();
         query = role switch
         {
@@ -112,9 +114,22 @@ public sealed class OrderService(
             "DRIVER" => query.Where(x => x.AssignedDriverId == actorId),
             _ => query.Where(x => x.CustomerId == actorId)
         };
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (!Enum.TryParse<OrderStatus>(status, true, out var parsedStatus))
+                throw new ApiException(400, "INVALID_ORDER_STATUS", $"Trạng thái '{status}' không hợp lệ.");
+            query = query.Where(x => x.Status == parsedStatus);
+        }
+        var total = await query.CountAsync(cancellationToken);
         var orders = await query.OrderByDescending(x => x.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize)
             .ToListAsync(cancellationToken);
-        return orders.Select(ToResponse).ToList();
+        return new PagedResponse<OrderResponse>
+        {
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = total,
+            Items = orders.Select(ToResponse).ToList()
+        };
     }
 
     public async Task<OrderResponse?> GetOrderByIdAsync(Guid orderId, Guid actorId, string role, CancellationToken cancellationToken = default)
@@ -130,12 +145,12 @@ public sealed class OrderService(
         return order is null ? null : ToResponse(order);
     }
 
-    public async Task<OrderResponse> CancelOrderAsync(Guid orderId, Guid customerId, int expectedVersion, string reasonCode, CancellationToken cancellationToken = default)
+    public async Task<OrderResponse> CancelOrderAsync(Guid orderId, Guid customerId, int? expectedVersion, string reasonCode, CancellationToken cancellationToken = default)
     {
         var order = await db.Orders.FirstOrDefaultAsync(x => x.OrderId == orderId && x.CustomerId == customerId, cancellationToken)
             ?? throw new ApiException(404, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng.");
         if (order.Status == OrderStatus.CANCELLED) return ToResponse(order);
-        if (order.Version != expectedVersion)
+        if (expectedVersion is not null && order.Version != expectedVersion)
             throw new ApiException(409, "ORDER_VERSION_CONFLICT", $"Version hiện tại là {order.Version}.");
         if (!OrderStateMachine.CanCustomerCancel(order.Status))
             throw new ApiException(409, "ORDER_CANNOT_CANCEL", $"Không thể hủy đơn ở trạng thái {order.Status}.");
@@ -228,5 +243,8 @@ public sealed class OrderService(
         Version = order.Version,
         CreatedAt = order.CreatedAt,
         UpdatedAt = order.UpdatedAt
+        ,RefundStatus = order.Status == OrderStatus.CANCELLED
+            ? (order.PromotionReservationId is not null || order.LoyaltyReservationId is not null ? "PENDING" : "NOT_APPLICABLE")
+            : "NOT_APPLICABLE"
     };
 }

@@ -11,6 +11,20 @@ if (builder.Configuration.GetValue("USE_HTTPS_REDIRECTION", true))
     app.UseHttpsRedirection();
 }
 
+app.Use(async (context, next) =>
+{
+    const string header = "X-Correlation-ID";
+    var correlationId = context.Request.Headers[header].FirstOrDefault();
+    if (string.IsNullOrWhiteSpace(correlationId)) correlationId = Guid.NewGuid().ToString("N");
+    context.Request.Headers[header] = correlationId;
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers[header] = correlationId;
+        return Task.CompletedTask;
+    });
+    await next();
+});
+
 app.MapGet("/health/live", () =>
 {
     return Results.Ok(new
