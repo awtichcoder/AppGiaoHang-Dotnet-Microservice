@@ -174,9 +174,22 @@ public sealed class OrderService(
         order.Version++;
         order.UpdatedAt = DateTime.UtcNow;
         if (target == OrderStatus.PICKED_UP) EnqueueReservationAction(order, "CommitReservations");
-        if (target == OrderStatus.NO_DRIVER_FOUND) EnqueueReservationAction(order, "ReleaseReservations");
+        if (target is OrderStatus.NO_DRIVER_FOUND or OrderStatus.CANCELLED) EnqueueReservationAction(order, "ReleaseReservations");
+        if (target == OrderStatus.COMPLETED) EnqueueLoyaltyEarn(order);
         await db.SaveChangesAsync(cancellationToken);
         return ToResponse(order);
+    }
+
+    private void EnqueueLoyaltyEarn(Order order)
+    {
+        db.OutboxMessages.Add(new OutboxMessage
+        {
+            Type = "LoyaltyEarn",
+            Payload = JsonSerializer.Serialize(new OrderOutboxWorker.LoyaltyEarnPayload(
+                order.OrderId,
+                order.CustomerId,
+                order.TotalFee))
+        });
     }
 
     private static string Fingerprint(CreateOrderRequest request)

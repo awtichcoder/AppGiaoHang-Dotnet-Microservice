@@ -5,7 +5,7 @@ using OrderService.Contracts;
 
 namespace OrderService.Services;
 
-// Map và Promotion gọi service thật. Loyalty tạm giữ adapter mock cho tới khi nhóm phụ trách cung cấp API.
+// Map, Promotion và Loyalty đều gọi service thật qua HTTP nội bộ.
 public sealed class OrderPricingDependencies(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration) : IOrderPricingDependencies
@@ -48,15 +48,23 @@ public sealed class OrderPricingDependencies(
         return new PricingReservation(reservation.DiscountAmount, reservation.ReservationId);
     }
 
-    public Task<PricingReservation> ReservePointsAsync(
+    public async Task<PricingReservation> ReservePointsAsync(
         Guid orderId, Guid customerId, int points, long remainingFee, CancellationToken cancellationToken)
     {
-        if (!configuration.GetValue("DependencyMocks:LoyaltyEnabled", true))
-            throw new ApiException(503, "LOYALTY_NOT_CONFIGURED", "LoyaltyService chưa có adapter tích điểm.");
-        if (points <= 0) return Task.FromResult(new PricingReservation(0, null));
+        if (points <= 0 || remainingFee <= 0) return new PricingReservation(0, null);
 
-        var discount = Math.Min((long)points, remainingFee);
-        return Task.FromResult(new PricingReservation(discount, Guid.NewGuid()));
+        using var request = CreateInternalRequest(HttpMethod.Post, "api/loyalty/reserve", new
+        {
+            customerId,
+            orderId,
+            points,
+            orderAmount = checked((int)Math.Min(remainingFee, int.MaxValue))
+        });
+        using var response = await httpClientFactory.CreateClient("LoyaltyService").SendAsync(request, cancellationToken);
+        await EnsureDependencySuccessAsync(response, "LOYALTY_REJECTED", cancellationToken);
+        var reservation = await response.Content.ReadFromJsonAsync<LoyaltyReservationResponse>(cancellationToken)
+            ?? throw new ApiException(502, "LOYALTY_INVALID_RESPONSE", "LoyaltyService không trả dữ liệu giữ điểm.");
+        return new PricingReservation(reservation.DiscountAmount, reservation.ReservationId);
     }
 
     public Task CommitPromotionAsync(Guid reservationId, CancellationToken cancellationToken) =>
@@ -65,11 +73,38 @@ public sealed class OrderPricingDependencies(
     public Task ReleasePromotionAsync(Guid reservationId, CancellationToken cancellationToken) =>
         SendPromotionActionAsync(reservationId, "release", cancellationToken);
 
+    public Task CommitPointsAsync(Guid reservationId, CancellationToken cancellationToken) =>
+        SendLoyaltyActionAsync(reservationId, "commit", cancellationToken);
+
+    public Task ReleasePointsAsync(Guid reservationId, CancellationToken cancellationToken) =>
+        SendLoyaltyActionAsync(reservationId, "release", cancellationToken);
+
+    public async Task EarnPointsAsync(Guid orderId, Guid customerId, long orderAmount, CancellationToken cancellationToken)
+    {
+        if (orderAmount <= 0) return;
+
+        using var request = CreateInternalRequest(HttpMethod.Post, "api/loyalty/earn", new
+        {
+            customerId,
+            orderId,
+            orderAmount = checked((int)Math.Min(orderAmount, int.MaxValue))
+        });
+        using var response = await httpClientFactory.CreateClient("LoyaltyService").SendAsync(request, cancellationToken);
+        await EnsureDependencySuccessAsync(response, "LOYALTY_EARN_ERROR", cancellationToken);
+    }
+
     private async Task SendPromotionActionAsync(Guid reservationId, string action, CancellationToken cancellationToken)
     {
         using var request = CreateInternalRequest(HttpMethod.Post, $"api/promotion/reservations/{reservationId}/{action}", null);
         using var response = await httpClientFactory.CreateClient("PromotionService").SendAsync(request, cancellationToken);
         await EnsureDependencySuccessAsync(response, "PROMOTION_RESERVATION_ERROR", cancellationToken);
+    }
+
+    private async Task SendLoyaltyActionAsync(Guid reservationId, string action, CancellationToken cancellationToken)
+    {
+        using var request = CreateInternalRequest(HttpMethod.Post, $"api/loyalty/reservations/{reservationId}/{action}", null);
+        using var response = await httpClientFactory.CreateClient("LoyaltyService").SendAsync(request, cancellationToken);
+        await EnsureDependencySuccessAsync(response, "LOYALTY_RESERVATION_ERROR", cancellationToken);
     }
 
     private HttpRequestMessage CreateInternalRequest(HttpMethod method, string path, object? body)
@@ -113,6 +148,12 @@ public sealed class OrderPricingDependencies(
     }
 
     private sealed class PromotionReservationResponse
+    {
+        public Guid ReservationId { get; set; }
+        public long DiscountAmount { get; set; }
+    }
+
+    private sealed class LoyaltyReservationResponse
     {
         public Guid ReservationId { get; set; }
         public long DiscountAmount { get; set; }

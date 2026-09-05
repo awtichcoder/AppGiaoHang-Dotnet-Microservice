@@ -1,6 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG SERVICE_PROJECT
 WORKDIR /src
+ENV NUGET_PACKAGES=/tmp/nuget/packages
+ENV NUGET_HTTP_CACHE_PATH=/tmp/nuget/http-cache
 COPY . .
 RUN dotnet restore "${SERVICE_PROJECT}/${SERVICE_PROJECT}.csproj"
 RUN dotnet publish "${SERVICE_PROJECT}/${SERVICE_PROJECT}.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false

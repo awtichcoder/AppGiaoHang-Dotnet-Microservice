@@ -1,6 +1,51 @@
-@LoyaltyService_HostAddress = http://localhost:5100
+@GatewayBaseUrl = http://localhost:6200
+@LoyaltyBaseUrl = http://localhost:6204
+@customerToken = paste-customer-jwt-here
+@internalKey = deliveryapp-development-internal-key-change-before-production
+@customerId = 00000000-0000-0000-0000-000000000001
+@orderId = 00000000-0000-0000-0000-000000000002
+@reservationId = 00000000-0000-0000-0000-000000000003
 
-GET {{LoyaltyService_HostAddress}}/weatherforecast/
-Accept: application/json
+### Public: get my loyalty balance through Gateway
+GET {{GatewayBaseUrl}}/api/loyalty/me
+Authorization: Bearer {{customerToken}}
 
-###
+### Public: preview point discount through Gateway
+POST {{GatewayBaseUrl}}/api/loyalty/preview
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "points": 5
+}
+
+### Internal: earn points after an order is completed
+POST {{LoyaltyBaseUrl}}/api/loyalty/earn
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "customerId": "{{customerId}}",
+  "orderId": "{{orderId}}",
+  "orderAmount": 1000000
+}
+
+### Internal: reserve points while creating an order
+POST {{LoyaltyBaseUrl}}/api/loyalty/reserve
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "customerId": "{{customerId}}",
+  "orderId": "{{orderId}}",
+  "points": 5,
+  "orderAmount": 100000
+}
+
+### Internal: commit a reservation when the order is picked up
+POST {{LoyaltyBaseUrl}}/api/loyalty/reservations/{{reservationId}}/commit
+X-Internal-Key: {{internalKey}}
+
+### Internal: release a reservation when the order is canceled or no driver is found
+POST {{LoyaltyBaseUrl}}/api/loyalty/reservations/{{reservationId}}/release
+X-Internal-Key: {{internalKey}}

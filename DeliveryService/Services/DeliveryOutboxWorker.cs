@@ -35,10 +35,6 @@ public sealed class DeliveryOutboxWorker(IServiceScopeFactory scopeFactory, ILog
                     var payload = JsonSerializer.Deserialize<DeliveryWorkflowService.OrderStatusPayload>(message.Payload)!;
                     await orders.UpdateAsync(payload.OrderId, payload.Status, payload.Version, payload.DriverId, cancellationToken);
                 }
-                else if (message.Type == "LoyaltyEarn")
-                {
-                    logger.LogInformation("LoyaltyEarn outbox {OutboxId} sẵn sàng cho adapter LoyaltyService", message.Id);
-                }
                 else if (message.Type is "DriverBusy" or "DriverAvailable")
                 {
                     logger.LogInformation("{Action} outbox {OutboxId} sẵn sàng cho adapter DriverService", message.Type, message.Id);

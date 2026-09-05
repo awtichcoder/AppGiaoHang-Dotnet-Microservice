@@ -139,11 +139,6 @@ public sealed class DeliveryWorkflowService(
         EnqueueOrderStatus(delivery, target);
         if (target == DeliveryStatus.COMPLETED)
         {
-            db.OutboxMessages.Add(new OutboxMessage
-            {
-                Type = "LoyaltyEarn",
-                Payload = JsonSerializer.Serialize(new { delivery.OrderId, delivery.CustomerId })
-            });
             EnqueueDriverStatus(delivery, "DriverAvailable");
         }
         await db.SaveChangesAsync(cancellationToken);

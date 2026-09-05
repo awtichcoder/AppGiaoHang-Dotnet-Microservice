@@ -63,6 +63,11 @@ public sealed class OrderOutboxWorker(IServiceScopeFactory scopeFactory, ILogger
                     var payload = JsonSerializer.Deserialize<CancelPayload>(message.Payload)!;
                     await delivery.CancelAsync(payload.OrderId, payload.ReasonCode, cancellationToken);
                 }
+                else if (message.Type == "LoyaltyEarn")
+                {
+                    var payload = JsonSerializer.Deserialize<LoyaltyEarnPayload>(message.Payload)!;
+                    await pricingDependencies.EarnPointsAsync(payload.OrderId, payload.CustomerId, payload.OrderAmount, cancellationToken);
+                }
                 else if (message.Type is "CommitReservations" or "ReleaseReservations")
                 {
                     var payload = JsonSerializer.Deserialize<ReservationPayload>(message.Payload)!;
@@ -73,13 +78,13 @@ public sealed class OrderOutboxWorker(IServiceScopeFactory scopeFactory, ILogger
                         else
                             await pricingDependencies.ReleasePromotionAsync(promotionReservationId, cancellationToken);
                     }
-
-                    // Loyalty vẫn dùng mock cho đến khi nhóm phụ trách cung cấp API commit/release.
-                    if (payload.LoyaltyReservationId is not null)
-                        logger.LogInformation(
-                            "{Action} loyalty reservation {ReservationId} bằng mock adapter",
-                            message.Type,
-                            payload.LoyaltyReservationId);
+                    if (payload.LoyaltyReservationId is Guid loyaltyReservationId)
+                    {
+                        if (message.Type == "CommitReservations")
+                            await pricingDependencies.CommitPointsAsync(loyaltyReservationId, cancellationToken);
+                        else
+                            await pricingDependencies.ReleasePointsAsync(loyaltyReservationId, cancellationToken);
+                    }
                 }
 
                 message.ProcessedAt = DateTime.UtcNow;
@@ -103,4 +108,6 @@ public sealed class OrderOutboxWorker(IServiceScopeFactory scopeFactory, ILogger
         Guid CustomerId,
         Guid? PromotionReservationId,
         Guid? LoyaltyReservationId);
+
+    public sealed record LoyaltyEarnPayload(Guid OrderId, Guid CustomerId, long OrderAmount);
 }

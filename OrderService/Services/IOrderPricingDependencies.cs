@@ -11,4 +11,7 @@ public interface IOrderPricingDependencies
     Task<PricingReservation> ReservePointsAsync(Guid orderId, Guid customerId, int points, long remainingFee, CancellationToken cancellationToken);
     Task CommitPromotionAsync(Guid reservationId, CancellationToken cancellationToken);
     Task ReleasePromotionAsync(Guid reservationId, CancellationToken cancellationToken);
+    Task CommitPointsAsync(Guid reservationId, CancellationToken cancellationToken);
+    Task ReleasePointsAsync(Guid reservationId, CancellationToken cancellationToken);
+    Task EarnPointsAsync(Guid orderId, Guid customerId, long orderAmount, CancellationToken cancellationToken);
 }
