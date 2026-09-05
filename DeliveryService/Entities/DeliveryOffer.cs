@@ -11,4 +11,5 @@ public sealed class DeliveryOffer
     public DateTime OfferedAt { get; set; } = DateTime.UtcNow;
     public DateTime ExpiresAt { get; set; }
     public DateTime? RespondedAt { get; set; }
+    public string? RejectReasonCode { get; set; }
 }

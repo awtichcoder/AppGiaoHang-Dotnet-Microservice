@@ -24,6 +24,8 @@ public sealed class DeliveryOutboxWorker(IServiceScopeFactory scopeFactory, ILog
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DeliveryDbContext>();
         var orders = scope.ServiceProvider.GetRequiredService<IOrderStatusClient>();
+        var drivers = scope.ServiceProvider.GetRequiredService<IDriverDirectoryClient>();
+        var loyalty = scope.ServiceProvider.GetRequiredService<ILoyaltyClient>();
         var messages = await db.OutboxMessages.Where(x => x.ProcessedAt == null && x.NextAttemptAt <= DateTime.UtcNow)
             .OrderBy(x => x.CreatedAt).Take(20).ToListAsync(cancellationToken);
         foreach (var message in messages)
@@ -37,11 +39,20 @@ public sealed class DeliveryOutboxWorker(IServiceScopeFactory scopeFactory, ILog
                 }
                 else if (message.Type == "LoyaltyEarn")
                 {
-                    logger.LogInformation("LoyaltyEarn outbox {OutboxId} sẵn sàng cho adapter LoyaltyService", message.Id);
+                    var payload = JsonSerializer.Deserialize<LoyaltyEarnPayload>(message.Payload)!;
+                    await loyalty.EarnAsync(payload.OrderId, payload.CustomerId, payload.Amount, cancellationToken);
                 }
-                else if (message.Type is "DriverBusy" or "DriverAvailable")
+                else if (message.Type == "DriverBusy")
                 {
-                    logger.LogInformation("{Action} outbox {OutboxId} sẵn sàng cho adapter DriverService", message.Type, message.Id);
+                    var payload = JsonSerializer.Deserialize<DriverStatusPayload>(message.Payload)!;
+                    if (payload.DriverId is null) throw new InvalidOperationException("DriverBusy thiếu DriverId.");
+                    await drivers.MarkBusyAsync(payload.DriverId.Value, payload.DeliveryId, payload.OrderId, cancellationToken);
+                }
+                else if (message.Type == "DriverAvailable")
+                {
+                    var payload = JsonSerializer.Deserialize<DriverStatusPayload>(message.Payload)!;
+                    if (payload.DriverId is null) throw new InvalidOperationException("DriverAvailable thiếu DriverId.");
+                    await drivers.MarkAvailableAsync(payload.DriverId.Value, payload.DeliveryId, payload.OrderId, cancellationToken);
                 }
                 message.ProcessedAt = DateTime.UtcNow;
                 message.LastError = null;
@@ -56,4 +67,7 @@ public sealed class DeliveryOutboxWorker(IServiceScopeFactory scopeFactory, ILog
         }
         if (messages.Count > 0) await db.SaveChangesAsync(cancellationToken);
     }
+
+    private sealed record DriverStatusPayload(Guid? DriverId, Guid DeliveryId, Guid OrderId);
+    private sealed record LoyaltyEarnPayload(Guid OrderId, Guid CustomerId, long Amount);
 }

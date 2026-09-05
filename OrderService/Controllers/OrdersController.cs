@@ -20,11 +20,12 @@ public sealed class OrdersController(IOrderService orderService, IConfiguration 
 
     [Authorize(Roles = "CUSTOMER,DRIVER,ADMIN")]
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<OrderResponse>>> GetOrders(
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<PagedResponse<OrderResponse>>> GetOrders(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? status = null,
+        CancellationToken cancellationToken = default)
     {
         var role = User.FindFirst("role")?.Value ?? "CUSTOMER";
-        return Ok(await orderService.GetOrdersAsync(User.GetSubjectId(), role, page, pageSize, cancellationToken));
+        return Ok(await orderService.GetOrdersAsync(User.GetSubjectId(), role, page, pageSize, status, cancellationToken));
     }
 
     [Authorize(Roles = "CUSTOMER,DRIVER,ADMIN")]

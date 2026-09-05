@@ -9,5 +9,5 @@ public class CancelOrderRequest
     public string ReasonCode { get; set; } = string.Empty;
 
     [Range(1, int.MaxValue)]
-    public int Version { get; set; }
+    public int? Version { get; set; }
 }

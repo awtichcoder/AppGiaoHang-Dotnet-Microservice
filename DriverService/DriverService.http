@@ -1,6 +1,25 @@
-@DriverService_HostAddress = http://localhost:5104
+@gateway = http://localhost:6200
+@driverToken = paste-driver-access-token-here
 
-GET {{DriverService_HostAddress}}/weatherforecast/
-Accept: application/json
+PATCH {{gateway}}/api/driver/me/availability
+Authorization: Bearer {{driverToken}}
+Content-Type: application/json
+
+{
+  "availabilityStatus": "AVAILABLE"
+}
+
+###
+
+PUT {{gateway}}/api/driver/me/location
+Authorization: Bearer {{driverToken}}
+Content-Type: application/json
+
+{
+  "latitude": 10.776889,
+  "longitude": 106.700806,
+  "accuracyM": 5,
+  "recordedAt": "{{$datetime iso8601}}"
+}
 
 ###

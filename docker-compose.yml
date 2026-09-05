@@ -31,6 +31,8 @@ services:
       INTERNAL_API_KEY: "${INTERNAL_API_KEY:?Copy .env.example to .env first}"
       ConnectionStrings__DeliveryDatabase: "Server=sqlserver,1433;Database=DeliveryApp_Delivery;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ServiceUrls__OrderService: http://orderservice:8080
+      ServiceUrls__DriverService: http://driverservice:8080
+      ServiceUrls__LoyaltyService: http://loyaltyservice:8080
       Matching__RadiusStepsKm__0: "3"
       Matching__RadiusStepsKm__1: "5"
       Matching__OfferTimeoutSeconds: "30"
@@ -38,6 +40,8 @@ services:
     ports: ["6201:8080"]
     depends_on:
       sqlserver: { condition: service_healthy }
+      driverservice: { condition: service_healthy }
+      loyaltyservice: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
       interval: 10s
@@ -61,13 +65,14 @@ services:
       ServiceUrls__DeliveryService: http://deliveryservice:8080
       ServiceUrls__MapService: http://mapservice:8080
       ServiceUrls__PromotionService: http://promotionservice:8080
-      DependencyMocks__LoyaltyEnabled: "true"
+      ServiceUrls__LoyaltyService: http://loyaltyservice:8080
     ports: ["6206:8080"]
     depends_on:
       sqlserver: { condition: service_healthy }
       deliveryservice: { condition: service_healthy }
       mapservice: { condition: service_healthy }
       promotionservice: { condition: service_healthy }
+      loyaltyservice: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
       interval: 10s
@@ -84,14 +89,25 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: Development
-      JWT_SECRET: "${JWT_SECRET}"
-      INTERNAL_API_KEY: "${INTERNAL_API_KEY}"
+      APPLY_MIGRATIONS: "true"
+      JWT_SECRET: "${JWT_SECRET:?Copy .env.example to .env first}"
+      ConnectionStrings__IdentityDatabase: "Server=sqlserver,1433;Database=DeliveryApp_Identity;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      DevelopmentSeed__Enabled: "true"
+      DevelopmentSeed__AdminEmail: "${DEV_ADMIN_EMAIL:-admin@deliveryapp.local}"
+      DevelopmentSeed__AdminPassword: "${DEV_ADMIN_PASSWORD:-Admin123!}"
+      DevelopmentSeed__DriverEmail: "${DEV_DRIVER_EMAIL:-driver@deliveryapp.local}"
+      DevelopmentSeed__DriverPassword: "${DEV_DRIVER_PASSWORD:-Driver123!}"
+      DevelopmentSeed__CustomerEmail: "${DEV_CUSTOMER_EMAIL:-dev@deliveryapp.local}"
+      DevelopmentSeed__CustomerPassword: "${DEV_CUSTOMER_PASSWORD:-Dev123!}"
     ports: ["6203:8080"]
+    depends_on:
+      sqlserver: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 12
+      start_period: 30s
     restart: unless-stopped
 
   driverservice:
@@ -102,14 +118,20 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: Development
-      JWT_SECRET: "${JWT_SECRET}"
-      INTERNAL_API_KEY: "${INTERNAL_API_KEY}"
+      APPLY_MIGRATIONS: "true"
+      JWT_SECRET: "${JWT_SECRET:?Copy .env.example to .env first}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:?Copy .env.example to .env first}"
+      ConnectionStrings__DriverDatabase: "Server=sqlserver,1433;Database=DeliveryApp_Driver;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      Driver__MaxLocationAgeSeconds: "60"
     ports: ["6202:8080"]
+    depends_on:
+      sqlserver: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 12
+      start_period: 30s
     restart: unless-stopped
 
   loyaltyservice:
@@ -120,14 +142,19 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: Development
-      JWT_SECRET: "${JWT_SECRET}"
-      INTERNAL_API_KEY: "${INTERNAL_API_KEY}"
+      APPLY_MIGRATIONS: "true"
+      JWT_SECRET: "${JWT_SECRET:?Copy .env.example to .env first}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:?Copy .env.example to .env first}"
+      ConnectionStrings__LoyaltyDatabase: "Server=sqlserver,1433;Database=DeliveryApp_Loyalty;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
     ports: ["6204:8080"]
+    depends_on:
+      sqlserver: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
     restart: unless-stopped
 
   mapservice:

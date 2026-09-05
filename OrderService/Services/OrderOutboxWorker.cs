@@ -74,12 +74,13 @@ public sealed class OrderOutboxWorker(IServiceScopeFactory scopeFactory, ILogger
                             await pricingDependencies.ReleasePromotionAsync(promotionReservationId, cancellationToken);
                     }
 
-                    // Loyalty vẫn dùng mock cho đến khi nhóm phụ trách cung cấp API commit/release.
-                    if (payload.LoyaltyReservationId is not null)
-                        logger.LogInformation(
-                            "{Action} loyalty reservation {ReservationId} bằng mock adapter",
-                            message.Type,
-                            payload.LoyaltyReservationId);
+                    if (payload.LoyaltyReservationId is Guid loyaltyReservationId)
+                    {
+                        if (message.Type == "CommitReservations")
+                            await pricingDependencies.CommitPointsAsync(loyaltyReservationId, cancellationToken);
+                        else
+                            await pricingDependencies.ReleasePointsAsync(loyaltyReservationId, cancellationToken);
+                    }
                 }
 
                 message.ProcessedAt = DateTime.UtcNow;

@@ -33,25 +33,25 @@ public sealed class DeliveryController(
 
     [Authorize(Roles = "DRIVER")]
     [HttpGet("offers/me")]
-    public async Task<ActionResult<IReadOnlyList<DeliveryOfferResponse>>> GetMyOffers(CancellationToken cancellationToken)
-        => Ok(await workflow.GetMyOffersAsync(User.SubjectId(), cancellationToken));
+    public async Task<ActionResult<PagedResponse<DeliveryOfferResponse>>> GetMyOffers(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+        => Ok(await workflow.GetMyOffersAsync(User.SubjectId(), page, pageSize, cancellationToken));
 
     [Authorize(Roles = "DRIVER")]
     [HttpPost("offers/{offerId:guid}/accept")]
-    public async Task<ActionResult<DeliveryResponse>> Accept(Guid offerId, CancellationToken cancellationToken)
+    public async Task<ActionResult<AcceptOfferResponse>> Accept(Guid offerId, CancellationToken cancellationToken)
         => Ok(await workflow.AcceptOfferAsync(offerId, User.SubjectId(), cancellationToken));
 
     [Authorize(Roles = "DRIVER")]
     [HttpPost("offers/{offerId:guid}/reject")]
-    public async Task<IActionResult> Reject(Guid offerId, CancellationToken cancellationToken)
-    {
-        await workflow.RejectOfferAsync(offerId, User.SubjectId(), cancellationToken);
-        return NoContent();
-    }
+    public async Task<ActionResult<RejectOfferResponse>> Reject(
+        Guid offerId, RejectOfferRequest request, CancellationToken cancellationToken) =>
+        Ok(await workflow.RejectOfferAsync(offerId, User.SubjectId(), request.ReasonCode, cancellationToken));
 
     [Authorize(Roles = "DRIVER")]
     [HttpPost("{deliveryId:guid}/pickup")]
-    public Task<ActionResult<DeliveryResponse>> Pickup(Guid deliveryId, CancellationToken cancellationToken)
+    public Task<ActionResult<DeliveryResponse>> Pickup(
+        Guid deliveryId, [FromBody] PickupDeliveryRequest? request, CancellationToken cancellationToken)
         => Stage(deliveryId, "pickup", cancellationToken);
 
     [Authorize(Roles = "DRIVER")]
@@ -94,9 +94,13 @@ public sealed class DeliveryController(
     }
 
     [AllowAnonymous]
-    [HttpPost("{orderId:guid}/cancel")]
-    public Task<ActionResult<DeliveryResponse>> Cancel(Guid orderId, CancelDeliveryRequest request, CancellationToken cancellationToken)
-        => CancelByOrder(orderId, request, cancellationToken);
+    [HttpPost("{deliveryId:guid}/cancel")]
+    public async Task<ActionResult<DeliveryResponse>> Cancel(
+        Guid deliveryId, CancelDeliveryRequest request, CancellationToken cancellationToken)
+    {
+        RequireInternalKey();
+        return Ok(await workflow.CancelByDeliveryIdAsync(deliveryId, cancellationToken));
+    }
 
     private async Task<ActionResult<DeliveryResponse>> Stage(Guid deliveryId, string action, CancellationToken cancellationToken)
         => Ok(await workflow.ChangeDriverStageAsync(deliveryId, User.SubjectId(), action, cancellationToken));

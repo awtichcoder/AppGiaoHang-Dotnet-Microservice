@@ -10,4 +10,5 @@ public sealed class DeliveryAssignRequest
     public GeoPointRequest PickupLocation { get; set; } = new();
     public GeoPointRequest DropoffLocation { get; set; } = new();
     public int OrderVersion { get; set; }
+    public long TotalFee { get; set; }
 }

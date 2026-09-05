@@ -54,6 +54,8 @@ var mapServiceUrl = builder.Configuration["ServiceUrls:MapService"]
     ?? throw new InvalidOperationException("Không tìm thấy ServiceUrls:MapService.");
 var promotionServiceUrl = builder.Configuration["ServiceUrls:PromotionService"]
     ?? throw new InvalidOperationException("Không tìm thấy ServiceUrls:PromotionService.");
+var loyaltyServiceUrl = builder.Configuration["ServiceUrls:LoyaltyService"]
+    ?? throw new InvalidOperationException("Không tìm thấy ServiceUrls:LoyaltyService.");
 builder.Services.AddHttpClient("MapService", client =>
 {
     client.BaseAddress = new Uri(mapServiceUrl.TrimEnd('/') + "/");
@@ -62,6 +64,11 @@ builder.Services.AddHttpClient("MapService", client =>
 builder.Services.AddHttpClient("PromotionService", client =>
 {
     client.BaseAddress = new Uri(promotionServiceUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient("LoyaltyService", client =>
+{
+    client.BaseAddress = new Uri(loyaltyServiceUrl.TrimEnd('/') + "/");
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 

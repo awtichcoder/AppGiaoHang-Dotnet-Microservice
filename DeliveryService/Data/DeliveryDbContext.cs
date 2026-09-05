@@ -41,6 +41,7 @@ public sealed class DeliveryDbContext(DbContextOptions<DeliveryDbContext> option
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
             entity.Property(x => x.RadiusKm).HasPrecision(5, 2);
             entity.Property(x => x.DistanceKm).HasPrecision(7, 2);
+            entity.Property(x => x.RejectReasonCode).HasMaxLength(100);
         });
         modelBuilder.Entity<OutboxMessage>(entity =>
         {
