@@ -35,14 +35,25 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options => options.ExpectedKey = builder.Configuration["INTERNAL_API_KEY"] ?? string.Empty);
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("ServiceOrUser", policy => policy
-        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, InternalKeyAuthenticationHandler.SchemeName)
+    options.AddPolicy("InternalOnly", policy => policy
+        .AddAuthenticationSchemes(InternalKeyAuthenticationHandler.SchemeName)
         .RequireAuthenticatedUser());
 });
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseStatusCodePages(async context =>
+{
+    var response = context.HttpContext.Response;
+    if (response.StatusCode is 401 or 403)
+        await response.WriteAsJsonAsync(new
+        {
+            code = response.StatusCode == 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+            message = response.StatusCode == 401 ? "Cần đăng nhập hoặc thông tin xác thực không hợp lệ." : "Bạn không có quyền thực hiện thao tác này.",
+            details = (object?)null
+        });
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

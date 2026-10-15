@@ -4,6 +4,7 @@ namespace LoyaltyService.Services;
 
 public interface ILoyaltyManager
 {
+    Task ReleaseByOrderAsync(Guid orderId, CancellationToken cancellationToken);
     Task<LoyaltyAccountResponse> GetAccountAsync(Guid customerId, CancellationToken cancellationToken);
     Task<PointsPreviewResponse> PreviewAsync(Guid customerId, PreviewPointsRequest request, CancellationToken cancellationToken);
     Task<LoyaltyReservationResponse> ReserveAsync(ReservePointsRequest request, CancellationToken cancellationToken);

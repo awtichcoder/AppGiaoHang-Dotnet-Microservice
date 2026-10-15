@@ -1,4 +1,5 @@
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpClient("Readiness", client => client.Timeout = TimeSpan.FromSeconds(3));
 
 builder.Services
     .AddReverseProxy()
@@ -33,7 +34,28 @@ app.MapGet("/health/live", () =>
         service = "ApiGateway"
     });
 });
-app.MapGet("/health/ready", () => Results.Ok(new { status = "Ready", dependencies = new[] { "ReverseProxy" } }));
+app.MapGet("/health/ready", async (IHttpClientFactory clients, IConfiguration configuration, CancellationToken cancellationToken) =>
+{
+    var checks = configuration.GetSection("ReverseProxy:Clusters").GetChildren().Select(async cluster =>
+    {
+        var destinations = cluster.GetSection("Destinations").GetChildren().ToArray();
+        var ready = false;
+        foreach (var destination in destinations)
+        {
+            try
+            {
+                var url = new Uri(new Uri(destination["Address"]!), "health/ready");
+                using var response = await clients.CreateClient("Readiness").GetAsync(url, cancellationToken);
+                ready |= response.IsSuccessStatusCode;
+            }
+            catch (Exception e) when (e is HttpRequestException or OperationCanceledException) { }
+        }
+        return new { service = cluster.Key, ready };
+    });
+    var dependencies = await Task.WhenAll(checks);
+    var ready = dependencies.Length > 0 && dependencies.All(d => d.ready);
+    return Results.Json(new { status = ready ? "Ready" : "NotReady", dependencies }, statusCode: ready ? 200 : 503);
+});
 
 app.MapReverseProxy();
 

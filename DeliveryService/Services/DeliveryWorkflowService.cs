@@ -151,7 +151,7 @@ public sealed class DeliveryWorkflowService(
         };
     }
 
-    public async Task<DeliveryResponse> ChangeDriverStageAsync(Guid deliveryId, Guid driverId, string action, CancellationToken cancellationToken)
+    public async Task<DeliveryResponse> ChangeDriverStageAsync(Guid deliveryId, Guid driverId, string action, CancellationToken cancellationToken, PickupDeliveryRequest? pickup = null)
     {
         var delivery = await db.Deliveries.FirstOrDefaultAsync(x => x.DeliveryId == deliveryId, cancellationToken)
             ?? throw new ApiException(404, "DELIVERY_NOT_FOUND", "Không tìm thấy delivery.");
@@ -174,6 +174,14 @@ public sealed class DeliveryWorkflowService(
             _ => false
         };
         if (!valid) throw new ApiException(409, "INVALID_DELIVERY_TRANSITION", $"Không thể chuyển từ {delivery.Status} sang {target}.");
+
+        if (target == DeliveryStatus.PICKED_UP)
+        {
+            if (pickup?.GpsLatitude is not decimal latitude || pickup.GpsLongitude is not decimal longitude)
+                throw new ApiException(400, "PICKUP_GPS_REQUIRED", "Cần gửi GPS hiện tại khi xác nhận lấy hàng.");
+            if (!PickupRules.IsNearPickup(latitude, longitude, delivery.PickupLatitude, delivery.PickupLongitude, _matching.PickupMaxDistanceMeters))
+                throw new ApiException(409, "PICKUP_TOO_FAR", $"Bạn cần ở trong phạm vi {_matching.PickupMaxDistanceMeters}m của điểm lấy hàng.");
+        }
 
         delivery.Status = target;
         delivery.UpdatedAt = DateTime.UtcNow;
@@ -308,6 +316,10 @@ public sealed class DeliveryWorkflowService(
 
     private static DeliveryResponse ToResponse(Delivery delivery, bool includePhone) => new()
     {
+        PickupLatitude = delivery.PickupLatitude,
+        PickupLongitude = delivery.PickupLongitude,
+        DropoffLatitude = delivery.DropoffLatitude,
+        DropoffLongitude = delivery.DropoffLongitude,
         DeliveryId = delivery.DeliveryId,
         OrderId = delivery.OrderId,
         CustomerId = delivery.CustomerId,

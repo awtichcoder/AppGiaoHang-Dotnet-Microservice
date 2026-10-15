@@ -10,8 +10,20 @@ namespace PromotionService.Controllers;
 [Route("api/promotion")]
 public sealed class PromotionController(IPromotionService promotionService) : ControllerBase
 {
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> List(CancellationToken cancellationToken)
+        => Ok(await promotionService.ListActiveAsync(cancellationToken));
+
+    [HttpPost("orders/{orderId:guid}/release")]
+    [Authorize(Policy = "InternalOnly")]
+    public async Task<IActionResult> ReleaseOrder(Guid orderId, CancellationToken cancellationToken)
+    {
+        await promotionService.ReleaseByOrderAsync(orderId, cancellationToken);
+        return NoContent();
+    }
     [HttpPost("validate")]
-    [Authorize(Policy = "ServiceOrUser")]
+    [Authorize(Policy = "InternalOnly")]
     public async Task<IActionResult> Validate(ValidatePromotionRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Code) || request.CustomerId == Guid.Empty)

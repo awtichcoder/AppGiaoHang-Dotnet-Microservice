@@ -12,8 +12,11 @@ public static class LoyaltyRules
 
     public static string CalculateTier(int points) => points switch
     {
-        >= 5000 => "GOLD",
-        >= 1000 => "SILVER",
+        >= 500 => "GOLD",
+        >= 100 => "SILVER",
         _ => "BRONZE"
     };
+
+    // Informational only: tier discounts are not deducted in the MVP.
+    public static int TierDiscountPercent(int points) => points >= 500 ? 10 : points >= 100 ? 5 : 0;
 }

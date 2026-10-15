@@ -13,8 +13,18 @@ namespace OrderService.Services;
 public sealed class OrderService(
     OrderDbContext db,
     IDeliveryQuoteClient deliveryQuoteClient,
-    IOrderPricingDependencies pricingDependencies) : IOrderService
+    IOrderPricingDependencies pricingDependencies,
+    ILogger<OrderService> logger) : IOrderService
 {
+    public async Task<OrderPricePreview> PreviewAsync(CreateOrderRequest request, Guid customerId, CancellationToken cancellationToken)
+    {
+        var distance = await pricingDependencies.GetDistanceKmAsync(request.PickupLocation, request.DropoffLocation, cancellationToken);
+        var quote = await deliveryQuoteClient.GetQuoteAsync(distance, cancellationToken);
+        var discount = await pricingDependencies.PreviewPromotionAsync(customerId, request.PromotionCode, quote.ShippingFee, cancellationToken);
+        return new(distance, quote.BaseFee, quote.Surcharge, quote.PlatformFee, quote.ShippingFee,
+            discount, Math.Max(0, quote.ShippingFee - discount));
+    }
+
     public async Task<OrderResponse> CreateOrderAsync(CreateOrderRequest request, Guid customerId, CancellationToken cancellationToken = default)
     {
         if (request.ClientRequestId == Guid.Empty)
@@ -34,72 +44,110 @@ public sealed class OrderService(
         var orderId = Guid.NewGuid();
         var distanceKm = await pricingDependencies.GetDistanceKmAsync(request.PickupLocation, request.DropoffLocation, cancellationToken);
         var quote = await deliveryQuoteClient.GetQuoteAsync(distanceKm, cancellationToken);
-        var promotion = await pricingDependencies.ReservePromotionAsync(orderId, customerId, request.PromotionCode, quote.ShippingFee, cancellationToken);
-        var afterPromotion = Math.Max(0, quote.ShippingFee - promotion.Discount);
-        var points = await pricingDependencies.ReservePointsAsync(orderId, customerId, request.PointsToUse, afterPromotion, cancellationToken);
-
-        var order = new Order
+        // Persist recovery BEFORE any remote reservation. By-order cleanup also covers a lost HTTP response.
+        var recovery = new OutboxMessage
         {
-            OrderId = orderId,
-            CustomerId = customerId,
-            PickupAddress = request.PickupAddress.Trim(),
-            DropoffAddress = request.DropoffAddress.Trim(),
-            PickupLatitude = request.PickupLocation.Latitude,
-            PickupLongitude = request.PickupLocation.Longitude,
-            DropoffLatitude = request.DropoffLocation.Latitude,
-            DropoffLongitude = request.DropoffLocation.Longitude,
-            ReceiverPhone = request.ReceiverPhone.Trim(),
-            PromotionCode = request.PromotionCode?.Trim(),
-            PointsToUse = request.PointsToUse,
-            DistanceKm = distanceKm,
-            BaseFee = quote.BaseFee,
-            Surcharge = quote.Surcharge,
-            PlatformFee = quote.PlatformFee,
-            DiscountPromotion = promotion.Discount,
-            DiscountPoints = points.Discount,
-            TotalFee = Math.Max(0, quote.ShippingFee - promotion.Discount - points.Discount),
-            PromotionReservationId = promotion.ReservationId,
-            LoyaltyReservationId = points.ReservationId,
-            ClientRequestId = request.ClientRequestId,
-            RequestFingerprint = fingerprint,
-            Status = OrderStatus.PENDING,
-            MatchingStatus = "NOT_STARTED"
+            Type = "ReleaseUncreatedOrder",
+            Payload = JsonSerializer.Serialize(new OrderOutboxWorker.UncreatedOrderPayload(orderId)),
+            NextAttemptAt = DateTime.UtcNow.AddMinutes(5)
         };
-
-        db.Orders.Add(order);
-        db.OutboxMessages.Add(new OutboxMessage
-        {
-            Type = "DeliveryAssign",
-            Payload = JsonSerializer.Serialize(new DeliveryAssignRequest
-            {
-                OrderId = order.OrderId,
-                CustomerId = customerId,
-                PickupAddress = order.PickupAddress,
-                DropoffAddress = order.DropoffAddress,
-                ReceiverPhone = order.ReceiverPhone,
-                PickupLocation = request.PickupLocation,
-                DropoffLocation = request.DropoffLocation,
-                OrderVersion = order.Version,
-                TotalFee = order.TotalFee
-            })
-        });
-
+        db.OutboxMessages.Add(recovery);
+        await db.SaveChangesAsync(cancellationToken);
+        using var creationTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        creationTimeout.CancelAfter(TimeSpan.FromSeconds(90));
+        cancellationToken = creationTimeout.Token;
         try
         {
-            await db.SaveChangesAsync(cancellationToken);
+            var promotion = await pricingDependencies.ReservePromotionAsync(orderId, customerId, request.PromotionCode, quote.ShippingFee, cancellationToken);
+            var afterPromotion = Math.Max(0, quote.ShippingFee - promotion.Discount);
+            var points = await pricingDependencies.ReservePointsAsync(orderId, customerId, request.PointsToUse, afterPromotion, cancellationToken);
+
+            var order = new Order
+            {
+                OrderId = orderId,
+                CustomerId = customerId,
+                PickupAddress = request.PickupAddress.Trim(),
+                DropoffAddress = request.DropoffAddress.Trim(),
+                PickupLatitude = request.PickupLocation.Latitude,
+                PickupLongitude = request.PickupLocation.Longitude,
+                DropoffLatitude = request.DropoffLocation.Latitude,
+                DropoffLongitude = request.DropoffLocation.Longitude,
+                ReceiverPhone = request.ReceiverPhone.Trim(),
+                PromotionCode = request.PromotionCode?.Trim(),
+                PointsToUse = request.PointsToUse,
+                DistanceKm = distanceKm,
+                BaseFee = quote.BaseFee,
+                Surcharge = quote.Surcharge,
+                PlatformFee = quote.PlatformFee,
+                DiscountPromotion = promotion.Discount,
+                DiscountPoints = points.Discount,
+                TotalFee = Math.Max(0, quote.ShippingFee - promotion.Discount - points.Discount),
+                PromotionReservationId = promotion.ReservationId,
+                LoyaltyReservationId = points.ReservationId,
+                ClientRequestId = request.ClientRequestId,
+                RequestFingerprint = fingerprint,
+                Status = OrderStatus.PENDING,
+                MatchingStatus = "NOT_STARTED"
+            };
+
+            db.Orders.Add(order);
+            db.OutboxMessages.Add(new OutboxMessage
+            {
+                Type = "DeliveryAssign",
+                Payload = JsonSerializer.Serialize(new DeliveryAssignRequest
+                {
+                    OrderId = order.OrderId,
+                    CustomerId = customerId,
+                    PickupAddress = order.PickupAddress,
+                    DropoffAddress = order.DropoffAddress,
+                    ReceiverPhone = order.ReceiverPhone,
+                    PickupLocation = request.PickupLocation,
+                    DropoffLocation = request.DropoffLocation,
+                    OrderVersion = order.Version,
+                    TotalFee = order.TotalFee
+                })
+            });
+
+            try
+            {
+                recovery.ProcessedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                db.ChangeTracker.Clear();
+                await TryReleaseUncreatedAsync(orderId);
+                existing = await db.Orders.AsNoTracking().FirstOrDefaultAsync(
+                    x => x.CustomerId == customerId && x.ClientRequestId == request.ClientRequestId, cancellationToken);
+                if (existing is null) throw;
+                if (!string.IsNullOrEmpty(existing.RequestFingerprint) && existing.RequestFingerprint != fingerprint)
+                    throw new ApiException(409, "IDEMPOTENCY_KEY_REUSED", "clientRequestId đã được dùng với nội dung khác.");
+                return ToResponse(existing);
+            }
+
+            return ToResponse(order);
         }
-        catch (DbUpdateException)
+        catch
         {
             db.ChangeTracker.Clear();
-            existing = await db.Orders.AsNoTracking().FirstOrDefaultAsync(
-                x => x.CustomerId == customerId && x.ClientRequestId == request.ClientRequestId, cancellationToken);
-            if (existing is null) throw;
-            if (!string.IsNullOrEmpty(existing.RequestFingerprint) && existing.RequestFingerprint != fingerprint)
-                throw new ApiException(409, "IDEMPOTENCY_KEY_REUSED", "clientRequestId đã được dùng với nội dung khác.");
-            return ToResponse(existing);
+            await TryReleaseUncreatedAsync(orderId);
+            throw;
         }
+    }
 
-        return ToResponse(order);
+    private async Task TryReleaseUncreatedAsync(Guid orderId)
+    {
+        // Do not use the aborted request token, or release a successfully persisted order after an ambiguous commit.
+        using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        try
+        {
+            if (!await db.Orders.AsNoTracking().AnyAsync(o => o.OrderId == orderId, cleanup.Token))
+                await pricingDependencies.ReleaseByOrderAsync(orderId, cleanup.Token);
+        }
+        catch (Exception error)
+        {
+            logger.LogWarning(error, "Reservation cleanup for {OrderId} will be retried by the outbox", orderId);
+        }
     }
 
     public async Task<PagedResponse<OrderResponse>> GetOrdersAsync(
@@ -243,7 +291,8 @@ public sealed class OrderService(
         Version = order.Version,
         CreatedAt = order.CreatedAt,
         UpdatedAt = order.UpdatedAt
-        ,RefundStatus = order.Status == OrderStatus.CANCELLED
+        ,
+        RefundStatus = order.Status == OrderStatus.CANCELLED
             ? (order.PromotionReservationId is not null || order.LoyaltyReservationId is not null ? "PENDING" : "NOT_APPLICABLE")
             : "NOT_APPLICABLE"
     };

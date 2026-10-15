@@ -9,6 +9,7 @@ public sealed class DeliveryFeeOptions
 
 public sealed class MatchingOptions
 {
+    public double PickupMaxDistanceMeters { get; set; } = 200;
     public decimal[] RadiusStepsKm { get; set; } = [3, 5];
     public int OfferTimeoutSeconds { get; set; } = 30;
     public int MaxLocationAgeSeconds { get; set; } = 60;

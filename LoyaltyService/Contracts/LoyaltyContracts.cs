@@ -4,6 +4,8 @@ namespace LoyaltyService.Contracts;
 
 public sealed class LoyaltyAccountResponse
 {
+    public int AvailablePoints { get; set; }
+    public int TierDiscountPercent { get; set; }
     public Guid CustomerId { get; set; }
     public int Points { get; set; }
     public string Tier { get; set; } = string.Empty;

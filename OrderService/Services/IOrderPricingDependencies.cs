@@ -6,6 +6,8 @@ public sealed record PricingReservation(long Discount, Guid? ReservationId);
 
 public interface IOrderPricingDependencies
 {
+    Task<long> PreviewPromotionAsync(Guid customerId, string? code, long shippingFee, CancellationToken cancellationToken);
+    Task ReleaseByOrderAsync(Guid orderId, CancellationToken cancellationToken);
     Task<decimal> GetDistanceKmAsync(GeoPointRequest pickup, GeoPointRequest dropoff, CancellationToken cancellationToken);
     Task<PricingReservation> ReservePromotionAsync(Guid orderId, Guid customerId, string? code, long shippingFee, CancellationToken cancellationToken);
     Task<PricingReservation> ReservePointsAsync(Guid orderId, Guid customerId, int points, long remainingFee, CancellationToken cancellationToken);

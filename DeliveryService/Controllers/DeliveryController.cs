@@ -50,9 +50,9 @@ public sealed class DeliveryController(
 
     [Authorize(Roles = "DRIVER")]
     [HttpPost("{deliveryId:guid}/pickup")]
-    public Task<ActionResult<DeliveryResponse>> Pickup(
+    public async Task<ActionResult<DeliveryResponse>> Pickup(
         Guid deliveryId, [FromBody] PickupDeliveryRequest? request, CancellationToken cancellationToken)
-        => Stage(deliveryId, "pickup", cancellationToken);
+        => Ok(await workflow.ChangeDriverStageAsync(deliveryId, User.SubjectId(), "pickup", cancellationToken, request));
 
     [Authorize(Roles = "DRIVER")]
     [HttpPost("{deliveryId:guid}/start")]

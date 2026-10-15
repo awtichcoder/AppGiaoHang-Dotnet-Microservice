@@ -47,7 +47,13 @@ public sealed class OrderOutboxWorker(IServiceScopeFactory scopeFactory, ILogger
         {
             try
             {
-                if (message.Type == "DeliveryAssign")
+                if (message.Type == "ReleaseUncreatedOrder")
+                {
+                    var payload = JsonSerializer.Deserialize<UncreatedOrderPayload>(message.Payload)!;
+                    if (!await db.Orders.AsNoTracking().AnyAsync(o => o.OrderId == payload.OrderId, cancellationToken))
+                        await pricingDependencies.ReleaseByOrderAsync(payload.OrderId, cancellationToken);
+                }
+                else if (message.Type == "DeliveryAssign")
                 {
                     var payload = JsonSerializer.Deserialize<DeliveryAssignRequest>(message.Payload)!;
                     await delivery.AssignAsync(payload, cancellationToken);
@@ -99,6 +105,7 @@ public sealed class OrderOutboxWorker(IServiceScopeFactory scopeFactory, ILogger
     }
 
     public sealed record CancelPayload(Guid OrderId, string ReasonCode);
+    public sealed record UncreatedOrderPayload(Guid OrderId);
     public sealed record ReservationPayload(
         Guid OrderId,
         Guid CustomerId,

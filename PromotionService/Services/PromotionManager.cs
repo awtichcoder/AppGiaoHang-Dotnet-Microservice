@@ -11,6 +11,26 @@ public sealed class PromotionManager(PromotionDbContext dbContext) : IPromotionS
 {
     private static readonly TimeSpan ReservationLifetime = TimeSpan.FromMinutes(120);
 
+    public async Task<IReadOnlyList<PromotionListItem>> ListActiveAsync(CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        return await dbContext.Promotions.AsNoTracking()
+            .Where(p => p.IsActive && p.StartAt <= now && p.EndAt > now
+                && (p.UsageLimitTotal == null || p.UsageCount < p.UsageLimitTotal))
+            .OrderBy(p => p.EndAt).ThenBy(p => p.Code)
+            .Select(p => new PromotionListItem(p.Code, p.Description ?? p.Code,
+                p.DiscountType == PromotionDiscountType.FIXED ? (int?)p.DiscountValue : null,
+                p.DiscountType == PromotionDiscountType.PERCENT ? (decimal?)p.DiscountValue : null,
+                p.MaxDiscountAmount, p.MinOrderValue, p.EndAt)).ToListAsync(cancellationToken);
+    }
+
+    public async Task ReleaseByOrderAsync(Guid orderId, CancellationToken cancellationToken)
+    {
+        var id = await dbContext.PromotionReservations.AsNoTracking()
+            .Where(r => r.OrderId == orderId).Select(r => (Guid?)r.Id).SingleOrDefaultAsync(cancellationToken);
+        if (id is Guid reservationId) await ReleaseAsync(reservationId, cancellationToken);
+    }
+
     public async Task<ValidatePromotionResponse> ValidateAsync(ValidatePromotionRequest request, CancellationToken cancellationToken = default)
     {
         var promotion = await FindPromotionAsync(request.Code, cancellationToken);

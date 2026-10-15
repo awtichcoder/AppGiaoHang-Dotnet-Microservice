@@ -92,7 +92,7 @@ DeliveryService ── DriverService 3 km ──> offer tuần tự 30 giây
 - Outbox retry với exponential backoff giúp không mất đồng bộ khi service đích tạm lỗi.
 - Số điện thoại người nhận không xuất hiện trong offer trước khi tài xế accept.
 
-`OrderService` gọi **MapService**, **PromotionService**, **LoyaltyService** và **DeliveryService** thật qua HTTP nội bộ. `DeliveryService` gọi **DriverService** thật để tìm tài xế GPS còn mới trong bán kính 3/5 km, dùng outbox để chuyển tài xế `BUSY/AVAILABLE`, và gọi Loyalty cộng điểm idempotent theo `orderId`. Map dùng công thức Haversine; Promotion và Loyalty lưu reservation vào database riêng, TTL 120 giây, hỗ trợ reserve/commit/release.
+`OrderService` gọi **MapService**, **PromotionService**, **LoyaltyService** và **DeliveryService** thật qua HTTP nội bộ. `DeliveryService` gọi **DriverService** thật để tìm tài xế GPS còn mới trong bán kính 3/5 km, dùng outbox để chuyển tài xế `BUSY/AVAILABLE`, và gọi Loyalty cộng điểm idempotent theo `orderId`. Map dùng công thức Haversine; Promotion và Loyalty lưu reservation vào database riêng, TTL 120 phút, hỗ trợ reserve/commit/release.
 
 ## JWT và phân quyền
 
@@ -120,6 +120,26 @@ $customerHeaders = @{ Authorization = "Bearer $($customerLogin.accessToken)" }
 Khi test tài xế, đăng nhập `driver@deliveryapp.local`, rồi gọi `PATCH /api/driver/me/availability` với `{"availabilityStatus":"AVAILABLE"}` và cập nhật vị trí mới qua `PUT /api/driver/me/location` thì tài xế mới xuất hiện trong matching.
 
 ## API Nhóm 2
+
+### Đồng bộ CustomerApp
+
+- `GET /api/promotion`: danh sách mã còn hiệu lực, chưa hết tổng lượt; trả `code`, `description`, `discountAmount`/`discountPercent`, `maxDiscount`, `minOrderAmount`, `endAt`. Điều kiện theo khách hàng được kiểm tra khi preview/tạo đơn.
+- `POST /api/order/preview` (CUSTOMER): cùng body tạo đơn, tính phí và kiểm tra mã nhưng không giữ tài nguyên. Response có `distanceKm`, `baseFee`, `surcharge`, `platformFee`, `shippingFee`, `discountPromotion`, `amountAfterPromotion`. Gọi tiếp `POST /api/loyalty/preview` với `orderAmount = amountAfterPromotion` để xem tổng phí sau điểm. Phí/số dư được kiểm tra lại lúc tạo đơn.
+- `GET /api/loyalty/me` trả thêm `availablePoints` (trừ các hold còn hạn) và `tierDiscountPercent`. SILVER từ 100, GOLD từ 500 điểm; mức 0/5/10% chỉ là thông tin, không trừ phí trong MVP.
+- Delivery response có `pickupLatitude`, `pickupLongitude`, `dropoffLatitude`, `dropoffLongitude` cho tracking Customer.
+- Pickup yêu cầu cả `gpsLatitude` và `gpsLongitude`, gần điểm lấy hàng trong `Matching:PickupMaxDistanceMeters` (mặc định 200 m). DriverApp cần gửi GPS hiện tại. Thiếu GPS trả `400 PICKUP_GPS_REQUIRED`, ở xa trả `409 PICKUP_TOO_FAR`.
+- Map route quote và Promotion validate/reserve/commit/release chỉ chấp nhận `X-Internal-Key`; endpoint nội bộ không được mở qua Gateway. Response 401/403 có `code`, `message`, `details`.
+- Gateway `/health/ready` kiểm tra cả 7 service, trả 503 nếu có service không sẵn sàng; `/health/live` vẫn chỉ kiểm tra tiến trình.
+
+Trước khi giữ điểm/mã, Order ghi tác vụ `ReleaseUncreatedOrder`. Nếu tạo đơn lỗi, Order thử release ngay theo `orderId` ở cả hai service (kể cả khi response reserve bị mất). Tác vụ nền kiểm tra lại sau 5 phút và retry khi service lỗi. Tạo đơn có giới hạn 90 giây từ lúc bắt đầu reserve; lưu thành công thì kết thúc tác vụ recovery cùng transaction với đơn. Đơn đã tồn tại không bị recovery release. Reservation TTL vẫn 120 phút.
+
+Kiểm thử tích hợp local (PowerShell 7, Docker đang chạy):
+
+```powershell
+./scripts/Test-CustomerIntegration.ps1
+```
+
+Script tạo tài khoản/đơn kiểm thử riêng, kiểm tra bảo mật, preview, hoàn trả, tọa độ và chuyến giao hoàn chỉnh. Tài xế thử được đưa OFFLINE; dữ liệu thử được giữ để đối chiếu. Không chạy script này trên production.
 
 Order (public qua Gateway):
 

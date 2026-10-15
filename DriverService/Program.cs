@@ -56,6 +56,17 @@ builder.Services.AddAuthorization(options => options.AddPolicy("InternalOnly", p
 var app = builder.Build();
 app.UseMiddleware<ApiExceptionMiddleware>();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.UseStatusCodePages(async context =>
+{
+    var response = context.HttpContext.Response;
+    if (response.StatusCode is 401 or 403)
+        await response.WriteAsJsonAsync(new
+        {
+            code = response.StatusCode == 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+            message = response.StatusCode == 401 ? "Cần đăng nhập hoặc thông tin xác thực không hợp lệ." : "Bạn không có quyền thực hiện thao tác này.",
+            details = (object?)null
+        });
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

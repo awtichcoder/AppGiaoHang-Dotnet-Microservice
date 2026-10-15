@@ -13,6 +13,35 @@ public sealed class OrderPricingDependencies(
     private readonly string _internalApiKey = configuration["INTERNAL_API_KEY"]
         ?? throw new InvalidOperationException("Không tìm thấy INTERNAL_API_KEY.");
 
+    public async Task<long> PreviewPromotionAsync(Guid customerId, string? code, long shippingFee, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return 0;
+        using var request = CreateInternalRequest(HttpMethod.Post, "api/promotion/validate", new
+        {
+            code = code.Trim(), customerId, orderAmount = checked((int)Math.Min(shippingFee, int.MaxValue))
+        });
+        using var response = await httpClientFactory.CreateClient("PromotionService").SendAsync(request, cancellationToken);
+        await EnsureDependencySuccessAsync(response, "PROMOTION_REJECTED", cancellationToken);
+        var result = await response.Content.ReadFromJsonAsync<PromotionPreview>(cancellationToken)
+            ?? throw new ApiException(502, "PROMOTION_INVALID_RESPONSE", "Không đọc được ưu đãi.");
+        if (!result.Valid) throw new ApiException(409, "PROMOTION_INVALID", result.Reason ?? "Mã không áp dụng được.");
+        return result.DiscountAmount;
+    }
+
+    public async Task ReleaseByOrderAsync(Guid orderId, CancellationToken cancellationToken)
+    {
+        // Try both services even when one is unavailable. The durable outbox retries failures.
+        await Task.WhenAll(Release("PromotionService", "promotion"), Release("LoyaltyService", "loyalty"));
+        async Task Release(string client, string service)
+        {
+            using var request = CreateInternalRequest(HttpMethod.Post, $"api/{service}/orders/{orderId}/release", null);
+            using var response = await httpClientFactory.CreateClient(client).SendAsync(request, cancellationToken);
+            await EnsureDependencySuccessAsync(response, "RESERVATION_RELEASE_FAILED", cancellationToken);
+        }
+    }
+
+    private sealed record PromotionPreview(bool Valid, long DiscountAmount, string? Reason);
+
     public async Task<decimal> GetDistanceKmAsync(GeoPointRequest pickup, GeoPointRequest dropoff, CancellationToken cancellationToken)
     {
         using var request = CreateInternalRequest(HttpMethod.Post, "api/map/route/quote", new

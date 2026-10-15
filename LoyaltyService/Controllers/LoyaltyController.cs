@@ -11,6 +11,13 @@ namespace LoyaltyService.Controllers;
 [Route("api/loyalty")]
 public sealed class LoyaltyController(ILoyaltyManager loyalty) : ControllerBase
 {
+    [HttpPost("orders/{orderId:guid}/release")]
+    [Authorize(Policy = "InternalOnly")]
+    public async Task<IActionResult> ReleaseOrder(Guid orderId, CancellationToken cancellationToken)
+    {
+        await loyalty.ReleaseByOrderAsync(orderId, cancellationToken);
+        return NoContent();
+    }
     [HttpGet("me")]
     [Authorize(Roles = "CUSTOMER")]
     public Task<LoyaltyAccountResponse> Me(CancellationToken cancellationToken) =>

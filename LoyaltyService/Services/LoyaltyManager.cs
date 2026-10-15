@@ -9,7 +9,14 @@ namespace LoyaltyService.Services;
 
 public sealed class LoyaltyManager(LoyaltyDbContext db) : ILoyaltyManager
 {
-    private static readonly TimeSpan ReservationTtl = TimeSpan.FromSeconds(120);
+    private static readonly TimeSpan ReservationTtl = TimeSpan.FromMinutes(120);
+
+    public async Task ReleaseByOrderAsync(Guid orderId, CancellationToken cancellationToken)
+    {
+        var id = await db.Reservations.AsNoTracking().Where(r => r.OrderId == orderId)
+            .Select(r => (Guid?)r.ReservationId).SingleOrDefaultAsync(cancellationToken);
+        if (id is Guid reservationId) await ReleaseAsync(reservationId, cancellationToken);
+    }
 
     public async Task<LoyaltyAccountResponse> GetAccountAsync(Guid customerId, CancellationToken cancellationToken)
     {
@@ -28,7 +35,9 @@ public sealed class LoyaltyManager(LoyaltyDbContext db) : ILoyaltyManager
                 BalanceAfter = x.BalanceAfter,
                 CreatedAt = x.CreatedAt
             }).ToListAsync(cancellationToken);
-        return ToAccountResponse(account, history);
+        var response = ToAccountResponse(account, history);
+        response.AvailablePoints = await GetAvailablePointsAsync(customerId, cancellationToken);
+        return response;
     }
 
     public async Task<PointsPreviewResponse> PreviewAsync(
@@ -122,6 +131,7 @@ public sealed class LoyaltyManager(LoyaltyDbContext db) : ILoyaltyManager
 
     public async Task<LoyaltyReservationResponse> ReleaseAsync(Guid reservationId, CancellationToken cancellationToken)
     {
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var reservation = await FindReservationAsync(reservationId, cancellationToken);
         if (reservation.Status == LoyaltyReservationStatus.RELEASED) return ToReservationResponse(reservation);
         if (reservation.Status == LoyaltyReservationStatus.COMMITTED)
@@ -129,6 +139,7 @@ public sealed class LoyaltyManager(LoyaltyDbContext db) : ILoyaltyManager
         reservation.Status = LoyaltyReservationStatus.RELEASED;
         reservation.FinalizedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return ToReservationResponse(reservation);
     }
 
@@ -205,7 +216,8 @@ public sealed class LoyaltyManager(LoyaltyDbContext db) : ILoyaltyManager
     {
         CustomerId = account.CustomerId,
         Points = account.Points,
-        Tier = account.Tier,
+        Tier = LoyaltyRules.CalculateTier(account.Points),
+        TierDiscountPercent = LoyaltyRules.TierDiscountPercent(account.Points),
         RecentTransactions = history
     };
 
@@ -226,6 +238,6 @@ public sealed class LoyaltyManager(LoyaltyDbContext db) : ILoyaltyManager
         CustomerId = record.CustomerId,
         PointsEarned = record.PointsEarned,
         Balance = account.Points,
-        Tier = account.Tier
+        Tier = LoyaltyRules.CalculateTier(account.Points)
     };
 }

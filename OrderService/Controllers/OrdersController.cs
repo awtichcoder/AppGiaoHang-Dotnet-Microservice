@@ -11,6 +11,10 @@ namespace OrderService.Controllers;
 public sealed class OrdersController(IOrderService orderService, IConfiguration configuration) : ControllerBase
 {
     [Authorize(Roles = "CUSTOMER")]
+    [HttpPost("preview")]
+    public async Task<ActionResult<OrderPricePreview>> Preview(CreateOrderRequest request, CancellationToken cancellationToken)
+        => Ok(await orderService.PreviewAsync(request, User.GetSubjectId(), cancellationToken));
+    [Authorize(Roles = "CUSTOMER")]
     [HttpPost]
     public async Task<ActionResult<OrderResponse>> CreateOrder(CreateOrderRequest request, CancellationToken cancellationToken)
     {

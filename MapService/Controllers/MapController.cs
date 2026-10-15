@@ -11,7 +11,7 @@ namespace MapService.Controllers;
 public sealed class MapController(IDistanceCalculator distanceCalculator) : ControllerBase
 {
     [HttpPost("route/quote")]
-    [Authorize(Policy = "ServiceOrUser")]
+    [Authorize(Policy = "InternalOnly")]
     public ActionResult<RouteQuoteResponse> GetRouteQuote(RouteQuoteRequest request)
     {
         ValidateCoordinate(request.PickupLatitude, request.PickupLongitude, "pickup");

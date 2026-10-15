@@ -18,9 +18,10 @@ public sealed class LoyaltyRulesTests
 
     [Theory]
     [InlineData(0, "BRONZE")]
-    [InlineData(999, "BRONZE")]
-    [InlineData(1000, "SILVER")]
-    [InlineData(5000, "GOLD")]
+    [InlineData(99, "BRONZE")]
+    [InlineData(100, "SILVER")]
+    [InlineData(499, "SILVER")]
+    [InlineData(500, "GOLD")]
     public void Tier_is_derived_from_current_balance(int points, string expected)
     {
         Assert.Equal(expected, LoyaltyRules.CalculateTier(points));

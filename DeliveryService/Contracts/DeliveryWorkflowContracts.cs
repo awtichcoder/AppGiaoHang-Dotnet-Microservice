@@ -61,6 +61,10 @@ public sealed class RejectOfferResponse
 
 public sealed class DeliveryResponse
 {
+    public decimal PickupLatitude { get; set; }
+    public decimal PickupLongitude { get; set; }
+    public decimal DropoffLatitude { get; set; }
+    public decimal DropoffLongitude { get; set; }
     public Guid DeliveryId { get; set; }
     public Guid OrderId { get; set; }
     public Guid CustomerId { get; set; }
