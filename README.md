@@ -52,6 +52,24 @@ docker compose down -v
 
 > `.env.example` chỉ chứa giá trị phát triển. Khi deploy thật phải thay toàn bộ password/key, không commit file `.env`, đặt HTTPS/TLS ở reverse proxy phía trước Gateway.
 
+## Admin Web (React/Vite)
+
+Mã nguồn frontend nằm trong thư mục `AdminWeb`. Sau khi clone nhánh Admin:
+
+```powershell
+git clone -b kha-admin https://github.com/HoangKha-06/AppGiaoHang-Dotnet-Microservice.git
+cd AppGiaoHang-Dotnet-Microservice
+Copy-Item .env.example .env
+docker compose up -d --no-build
+cd AdminWeb
+npm.cmd install
+npm.cmd run dev -- --host 127.0.0.1
+```
+
+Mở `http://127.0.0.1:5173/`. Tài khoản phát triển: `admin@deliveryapp.local` / `Admin123!`.
+
+Trong Visual Studio 2022, mở `DeliveryApp.sln` để làm backend; frontend có thể mở bằng **File → Open → Folder** và chọn thư mục `AdminWeb`.
+
 ## Cổng dịch vụ
 
 | Thành phần | URL local |
