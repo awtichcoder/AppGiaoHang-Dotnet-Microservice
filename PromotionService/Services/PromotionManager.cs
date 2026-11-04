@@ -101,8 +101,9 @@ public sealed class PromotionManager(PromotionDbContext dbContext) : IPromotionS
 
         if (reservation.Status == PromotionReservationStatus.RELEASED)
             throw new ApiException(409, "RESERVATION_RELEASED", "Lượt giữ khuyến mãi đã được hoàn trả.");
-        if (reservation.ExpiresAt <= DateTime.UtcNow)
-            throw new ApiException(409, "RESERVATION_EXPIRED", "Lượt giữ khuyến mãi đã hết hạn.");
+        // An expired but unreleased hold is still honoured: the order was priced with this discount and
+        // commit runs at pickup, which can be later than the TTL. The limit checks below still apply,
+        // because expired holds stop counting towards the limits when other orders reserve.
 
         var promotion = await dbContext.Promotions.SingleAsync(x => x.Id == reservation.PromotionId, cancellationToken);
         if (promotion.UsageLimitTotal is int totalLimit && promotion.UsageCount >= totalLimit)
@@ -180,7 +181,12 @@ public sealed class PromotionManager(PromotionDbContext dbContext) : IPromotionS
             return Evaluation.Invalid("Mã khuyến mãi chưa có hiệu lực hoặc đã hết hạn.");
         if (orderAmount < promotion.MinOrderValue)
             return Evaluation.Invalid($"Giá trị đơn tối thiểu là {promotion.MinOrderValue}.");
-        if (promotion.UsageLimitTotal is int totalLimit && promotion.UsageCount >= totalLimit)
+        // Unexpired holds count as used: otherwise several pending orders could all get a discount
+        // that only one of them can commit later (the extra commits fail forever in the Order outbox).
+        var activeHolds = dbContext.PromotionReservations.Where(x => x.PromotionId == promotion.Id
+            && x.Status == PromotionReservationStatus.RESERVED && x.ExpiresAt > now);
+        if (promotion.UsageLimitTotal is int totalLimit
+            && promotion.UsageCount + await activeHolds.CountAsync(cancellationToken) >= totalLimit)
             return Evaluation.Invalid("Mã khuyến mãi đã hết lượt sử dụng.");
 
         if (promotion.UsageLimitPerCustomer is int customerLimit)
@@ -189,8 +195,11 @@ public sealed class PromotionManager(PromotionDbContext dbContext) : IPromotionS
                 .Where(x => x.PromotionId == promotion.Id && x.CustomerId == customerId)
                 .Select(x => x.CommittedCount)
                 .SingleOrDefaultAsync(cancellationToken);
-            if (committedCount >= customerLimit)
-                return Evaluation.Invalid("Bạn đã dùng hết lượt cho mã khuyến mãi này.");
+            var heldCount = await activeHolds.CountAsync(x => x.CustomerId == customerId, cancellationToken);
+            if (committedCount + heldCount >= customerLimit)
+                return Evaluation.Invalid(heldCount > 0
+                    ? "Mã khuyến mãi đang được giữ cho một đơn khác chưa hoàn tất của bạn."
+                    : "Bạn đã dùng hết lượt cho mã khuyến mãi này.");
         }
 
         var discount = promotion.DiscountType switch

@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.Shipper" parent="Theme.Shipper.Base">
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowSplashScreenBackground">#16A36A</item>
+    </style>
+</resources>

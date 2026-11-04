@@ -1,0 +1,24 @@
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+secrets.properties
+*.apk
+**/build/
+*.log
+*.jks
+*.keystore
+keystore.properties
+# Admin web (Node)
+node_modules/
+admin/dist/
+*.tsbuildinfo
+.env
+.env.local

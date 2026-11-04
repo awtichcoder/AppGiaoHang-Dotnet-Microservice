@@ -16,7 +16,7 @@ public sealed class DeliveryCommandClient(HttpClient httpClient, IConfiguration 
         using var response = await httpClient.SendAsync(message, cancellationToken);
         if (!response.IsSuccessStatusCode && response.StatusCode != HttpStatusCode.Conflict)
         {
-            throw new HttpRequestException($"Delivery assign thất bại: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync(cancellationToken)}");
+            throw new HttpRequestException($"Delivery assign thất bại: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync(cancellationToken)}", null, response.StatusCode);
         }
     }
 
@@ -26,7 +26,7 @@ public sealed class DeliveryCommandClient(HttpClient httpClient, IConfiguration 
         using var response = await httpClient.SendAsync(message, cancellationToken);
         if (!response.IsSuccessStatusCode && response.StatusCode != HttpStatusCode.NotFound)
         {
-            throw new HttpRequestException($"Delivery cancel thất bại: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync(cancellationToken)}");
+            throw new HttpRequestException($"Delivery cancel thất bại: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync(cancellationToken)}", null, response.StatusCode);
         }
     }
 

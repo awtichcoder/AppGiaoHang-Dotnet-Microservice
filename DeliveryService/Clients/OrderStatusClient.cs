@@ -17,6 +17,6 @@ public sealed class OrderStatusClient(HttpClient httpClient, IConfiguration conf
         message.Headers.Add("X-Internal-Key", _internalApiKey);
         using var response = await httpClient.SendAsync(message, cancellationToken);
         if (!response.IsSuccessStatusCode && response.StatusCode != HttpStatusCode.Conflict)
-            throw new HttpRequestException($"Order status update thất bại: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync(cancellationToken)}");
+            throw new HttpRequestException($"Order status update thất bại: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync(cancellationToken)}", null, response.StatusCode);
     }
 }

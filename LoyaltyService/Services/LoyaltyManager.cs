@@ -103,11 +103,16 @@ public sealed class LoyaltyManager(LoyaltyDbContext db) : ILoyaltyManager
         if (reservation.Status == LoyaltyReservationStatus.COMMITTED) return ToReservationResponse(reservation);
         if (reservation.Status != LoyaltyReservationStatus.RESERVED)
             throw new ApiException(409, "LOYALTY_RESERVATION_FINALIZED", $"Reservation đã ở trạng thái {reservation.Status}.");
-        if (reservation.ExpiresAt <= DateTime.UtcNow)
-            throw new ApiException(409, "LOYALTY_RESERVATION_EXPIRED", "Reservation điểm đã hết hạn.");
-
+        // An expired but unreleased hold is still honoured: commit runs at pickup, which can be later than
+        // the TTL. Points held by the customer's other unexpired orders are protected, because an expired
+        // hold stops counting and its points may have been reserved again meanwhile.
+        var now = DateTime.UtcNow;
         var account = await GetOrCreateAccountAsync(reservation.CustomerId, cancellationToken);
-        if (account.Points < reservation.Points)
+        var heldByOthers = await db.Reservations
+            .Where(x => x.CustomerId == reservation.CustomerId && x.ReservationId != reservation.ReservationId
+                && x.Status == LoyaltyReservationStatus.RESERVED && x.ExpiresAt > now)
+            .SumAsync(x => (int?)x.Points, cancellationToken) ?? 0;
+        if (account.Points - heldByOthers < reservation.Points)
             throw new ApiException(409, "LOYALTY_POINTS_INSUFFICIENT", "Số dư điểm không đủ để commit.");
         account.Points -= reservation.Points;
         account.Tier = LoyaltyRules.CalculateTier(account.Points);

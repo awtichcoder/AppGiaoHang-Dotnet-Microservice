@@ -94,10 +94,11 @@ public sealed class OrderOutboxWorker(IServiceScopeFactory scopeFactory, ILogger
             }
             catch (Exception exception)
             {
-                message.RetryCount++;
-                message.LastError = exception.Message[..Math.Min(exception.Message.Length, 2000)];
-                message.NextAttemptAt = DateTime.UtcNow.AddSeconds(Math.Min(60, Math.Pow(2, message.RetryCount)));
-                logger.LogWarning(exception, "Outbox {OutboxId} sẽ được thử lại", message.Id);
+                if (OutboxRetryPolicy.RecordFailure(message, exception, DateTime.UtcNow))
+                    logger.LogError(exception, "Outbox {OutboxId} ({Type}) bị dừng sau {RetryCount} lần bị từ chối; cần xử lý thủ công",
+                        message.Id, message.Type, message.RetryCount);
+                else
+                    logger.LogWarning(exception, "Outbox {OutboxId} sẽ được thử lại", message.Id);
             }
         }
 
