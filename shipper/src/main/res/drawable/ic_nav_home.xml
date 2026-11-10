@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma "Project giao hàng" · BottomNavBar · Trang chủ (node 286:351) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp" android:height="22dp" android:viewportWidth="16" android:viewportHeight="22">
+    <path android:fillColor="#16A36A"
+        android:pathData="M2,16H5V10H11V16H14V7L8,2.5L2,7V16V16M0,18V6L8,0L16,6V18H9V12H7V18H0V18M8,9.25V9.25" />
+</vector>
