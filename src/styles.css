@@ -1,0 +1,191 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap');
+
+/* Tokens from the driver app (Figma "Project giao hàng", driver screens). */
+:root {
+  --primary: #16a36a;      /* header, active tab */
+  --action: #0ea163;       /* buttons, distance */
+  --ink: #1a2621;
+  --ink-strong: #12211b;
+  --muted: #7a8580;
+  --nav-muted: #6b7d75;
+  --border: #dbe3de;
+  --soft: #f5f7f6;
+  --red: #ff0000;
+  --green-soft: #eaf8f2;
+  --confirm-bg: #c4ffc6;
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--ink);
+  background: #fff;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input, select { font: inherit; color: inherit; }
+h1, h2 { margin: 0; color: #000; }
+h1 { font-size: 22px; font-weight: 600; }
+h2 { font-size: 16px; font-weight: 600; }
+a { color: inherit; }
+.muted { color: var(--muted); font-size: 13px; margin: 0; }
+.note { color: var(--muted); font-size: 12px; margin: 16px 4px 0; }
+
+/* Shell — green header with rounded bottom corners, like the driver home */
+.shell { max-width: 1180px; margin: 0 auto; padding: 0 16px 40px; }
+.header {
+  display: flex; align-items: center; gap: 16px; min-height: 91px; padding: 0 24px;
+  background: var(--primary); color: #fff; border-radius: 0 0 24px 24px;
+}
+.who { display: flex; flex-direction: column; gap: 4px; }
+.who strong { font-size: 15px; font-weight: 600; }
+.who small { font-size: 10px; }
+.brand { margin-left: auto; font-size: 12px; font-weight: 500; opacity: .9; }
+.avatar {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--green-soft); color: var(--action); font-weight: 700;
+}
+.avatar.light { background: #fff; }
+
+/* Tabs — driver BottomNavBar items: icon over label, green when active */
+.tabs { display: flex; gap: 6px; margin: 16px 0 24px; padding: 6px; border: 1px solid var(--border); border-radius: 14px; }
+.tabs a {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px;
+  color: var(--nav-muted); text-decoration: none; font-size: 12px; font-weight: 600; letter-spacing: .6px; border-radius: 10px;
+}
+.tabs a.active { color: var(--primary); background: var(--green-soft); }
+.tab-icon { display: grid; place-items: center; height: 24px; }
+
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.head-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+/* Cards — driver order card: white, 1px #dbe3de, radius 14, padding 12, gap 8 */
+.card { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fff; border: 1px solid var(--border); border-radius: 14px; text-align: left; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 4px; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+
+/* Buttons — "Nhận đơn" (green, radius 10) and "Từ chối" (light grey) */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 16px;
+  border: 1px solid transparent; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none;
+}
+.btn.primary { background: var(--action); color: #fff; }
+.btn.soft { background: var(--soft); color: var(--ink); }
+.btn.outline { background: #fff; border-color: rgba(0, 0, 0, .16); color: #000; }
+.btn.danger { background: var(--soft); color: var(--red); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:not(:disabled):hover { filter: brightness(.96); }
+.link { background: none; border: 0; padding: 0; color: var(--action); font-size: 13px; font-weight: 600; cursor: pointer; }
+.link.back { color: var(--muted); }
+.spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Status badges */
+.status { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--soft); color: var(--nav-muted); white-space: nowrap; }
+.s-pending, .s-searching, .s-not-started { background: #fff4dd; color: #9a6400; }
+.s-assigned, .s-picked-up, .s-delivering, .s-active { background: var(--green-soft); color: var(--action); }
+.s-completed { background: var(--confirm-bg); color: #0b6b40; }
+.s-cancelled, .s-no-driver-found { background: #ffeceb; color: #c4231a; }
+
+/* Rows — label (light) / value (right), as in the driver trip details */
+.row { display: flex; justify-content: space-between; gap: 16px; font-size: 13px; }
+.row span { font-weight: 300; color: #000; }
+.row strong { font-weight: 400; text-align: right; }
+.t-green { color: var(--action); font-weight: 600 !important; }
+.t-red { color: var(--red); }
+.t-muted { color: var(--muted); }
+.total { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-top: 1px solid #000; }
+.total span { font-size: 13px; }
+.total strong { font-size: 15px; font-weight: 700; }
+
+.alert { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 10px; background: #ffeceb; color: #c4231a; font-size: 13px; margin-bottom: 8px; }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat span { font-size: 12px; color: var(--muted); }
+.stat strong { font-size: 28px; font-weight: 700; color: var(--ink); }
+.stat strong.money { font-size: 22px; }
+.stat small { font-size: 11px; color: var(--muted); }
+.stat.clickable { cursor: pointer; font: inherit; }
+.stat.clickable:hover { border-color: var(--action); }
+.status-list { display: flex; flex-direction: column; gap: 6px; }
+.status-line { display: grid; grid-template-columns: 130px 1fr 40px; align-items: center; gap: 12px; padding: 6px 4px; background: none; border: 0; border-radius: 8px; cursor: pointer; text-align: left; }
+.status-line:hover { background: var(--soft); }
+.status-line strong { text-align: right; }
+.bar { height: 8px; border-radius: 99px; background: var(--soft); overflow: hidden; }
+.bar b { display: block; height: 100%; background: var(--action); border-radius: 99px; }
+
+/* Orders — the driver order card */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.chip { padding: 6px 14px; border: 1px solid var(--border); border-radius: 999px; background: #fff; font-size: 12px; font-weight: 500; cursor: pointer; }
+.chip.active { background: var(--action); border-color: var(--action); color: #fff; }
+.search { width: 100%; height: 40px; padding: 0 14px; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 10px; }
+.order-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.order-card { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fff; border: 1px solid var(--border); border-radius: 14px; cursor: pointer; text-align: left; font: inherit; }
+.order-card:hover { border-color: var(--action); }
+.oc-top { display: flex; justify-content: space-between; font-weight: 600; }
+.oc-id { font-size: 12px; color: var(--ink); }
+.oc-km { font-size: 10px; color: var(--action); }
+.oc-a { font-size: 11px; font-weight: 500; color: var(--ink); }
+.oc-b { font-size: 10px; color: var(--muted); }
+.oc-bottom { display: flex; justify-content: space-between; align-items: center; }
+.oc-fee { display: flex; flex-direction: column; align-items: flex-end; font-size: 15px; font-weight: 700; color: var(--ink); }
+.oc-fee small { font-size: 9px; font-weight: 400; color: var(--muted); }
+.oc-time { font-size: 10px; color: var(--muted); }
+.order-card.compact .oc-fee small { display: none; }
+.pager { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; font-size: 13px; color: var(--muted); }
+.pager div { display: flex; gap: 8px; }
+.empty { text-align: center; color: var(--muted); padding: 32px 0; }
+
+/* Order detail */
+.route { display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid #000; margin-bottom: 4px; }
+.route div { display: flex; gap: 10px; align-items: flex-start; }
+.route b { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--action); color: #fff; font-size: 12px; }
+.route b.b { background: var(--ink); }
+.route span { display: flex; flex-direction: column; font-size: 13px; }
+.route small { font-size: 10px; color: var(--muted); }
+.timeline { list-style: none; margin: 4px 0; padding: 0 0 0 14px; border-left: 2px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.timeline li { position: relative; display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.timeline li::before { content: ''; position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+.timeline li.done { color: var(--ink); }
+.timeline li.done::before { background: var(--action); }
+.timeline time { font-size: 12px; }
+
+/* Forms */
+.form { display: flex; flex-direction: column; gap: 12px; }
+label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; }
+label input { height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; font-weight: 400; }
+label input:focus, .search:focus { outline: 2px solid var(--green-soft); border-color: var(--action); }
+label small { font-weight: 400; color: var(--muted); font-size: 11px; }
+.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; background: var(--soft); border-radius: 12px; }
+.segmented button { height: 34px; border: 0; border-radius: 10px; background: none; font-size: 13px; font-weight: 600; color: var(--nav-muted); cursor: pointer; }
+.segmented button.active { background: #fff; color: var(--action); box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
+.person { display: flex; align-items: center; gap: 12px; }
+.person div { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.person strong { font-size: 14px; }
+.person small { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.person.big { padding-bottom: 8px; }
+.role { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 99px; background: var(--green-soft); color: var(--action); }
+.role.admin { background: #eef0ff; color: #3f4cc0; }
+.health { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 10px; font-size: 13px; padding: 4px 0; }
+.health small { color: var(--muted); font-size: 12px; text-align: right; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+.dot.ok { background: var(--action); }
+.dot.bad { background: var(--red); }
+
+/* Login — driver login: green hero + white card */
+.login { min-height: 100vh; display: grid; place-items: center; align-content: center; gap: 24px; padding: 24px; background: #fff; }
+.login-hero { text-align: center; }
+.login-hero h1 { margin-top: 12px; font-size: 26px; }
+.login-hero p { margin: 4px 0 0; color: var(--muted); font-size: 12px; letter-spacing: 1px; }
+.login-card { width: min(400px, 100%); gap: 12px; padding: 24px; }
+.dev-account { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--green-soft); font-size: 12px; }
+.dev-account .link { align-self: flex-start; }
+.brand-mark { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--primary); color: #fff; font-size: 32px; font-weight: 800; }
+.splash { min-height: 100vh; display: grid; place-items: center; }
+
+@media (max-width: 640px) {
+  .brand { display: none; }
+  .tabs a { font-size: 11px; letter-spacing: 0; }
+  .status-line { grid-template-columns: 110px 1fr 32px; }
+}
