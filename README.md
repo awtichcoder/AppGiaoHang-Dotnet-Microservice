@@ -1,17 +1,17 @@
-# DeliveryApp — Backend .NET 9 Microservices + App Khách hàng, App Tài xế, Web Admin
+# DeliveryApp — Backend .NET 9 Microservices
 
-Hệ thống giao hàng gồm:
+Branch `BE-được-tách-ra-từ-cái-trước` chỉ chứa **Backend**, tách từ branch `Khoa-Deptrai` (bỏ thư mục `AdminWeb/` và `MobileApp/`). Các client nằm ở branch riêng trong cùng repo:
 
-| Thư mục | Thành phần | Công nghệ |
+| Thành phần | Nơi chứa | Công nghệ |
 |---|---|---|
-| `ApiGateway/`, `*Service/` | Backend: API Gateway (YARP) + 7 microservice + SQL Server | .NET 9, EF Core, Docker |
-| `MobileApp/app` | App **Khách hàng**: đặt đơn, theo dõi đơn, điểm thưởng | Android, Kotlin, Jetpack Compose |
-| `MobileApp/shipper` | App **Tài xế**: nhận lời mời, lấy hàng, giao hàng | Android, Kotlin, Jetpack Compose |
-| `AdminWeb/` | Web **Quản trị**: tổng quan, đơn hàng, tạo tài khoản tài xế | React 19, Vite, TypeScript |
+| Backend: API Gateway (YARP) + 7 microservice + SQL Server | branch này (`ApiGateway/`, `*Service/`) | .NET 9, EF Core, Docker |
+| App **Khách hàng**: đặt đơn, theo dõi đơn, điểm thưởng | branch `customer` | Android, Kotlin, Jetpack Compose |
+| App **Tài xế**: nhận lời mời, lấy hàng, giao hàng | branch `shipper` | Android, Kotlin, Jetpack Compose |
+| Web **Quản trị**: tổng quan, đơn hàng, tạo tài khoản tài xế | branch `admin` | React 19, Vite, TypeScript |
 
 Mọi client chỉ gọi **API Gateway** `http://localhost:6200`.
 
-> Branch `Khoa-Deptrai` = backend của Kha (`kha-admin`) + các bản sửa lỗi logic + FE đã nối backend thật. Xem mục [Cập nhật BE theo repo của Kha](#cập-nhật-be-theo-repo-của-kha).
+> Backend = backend của Kha (`kha-admin`) + các bản sửa lỗi logic. Xem mục [Cập nhật BE theo repo của Kha](#cập-nhật-be-theo-repo-của-kha).
 
 ## Mục lục
 
@@ -31,14 +31,12 @@ Mọi client chỉ gọi **API Gateway** `http://localhost:6200`.
 | Phần | Cần cài |
 |---|---|
 | Backend | Git, **Docker Desktop** (bật WSL2). Không bắt buộc .NET SDK nếu chỉ chạy bằng Docker |
-| Web Admin | **Node.js 20+** (khuyên dùng 24) |
-| App Android | **JDK 17** + **Android SDK 36**. Dễ nhất là cài Android Studio (có sẵn cả hai). Không có Android Studio vẫn được: cài [command-line tools](https://developer.android.com/studio#command-line-tools-only), JDK 17 (Temurin/Corretto) và tạo máy ảo bằng `avdmanager` |
 | Chạy unit test BE (tùy chọn) | .NET 9 SDK |
 
 ### 1. Clone đúng branch
 
 ```powershell
-git clone -b Khoa-Deptrai https://github.com/awtichcoder/AppGiaoHang-Dotnet-Microservice.git
+git clone -b BE-được-tách-ra-từ-cái-trước https://github.com/awtichcoder/AppGiaoHang-Dotnet-Microservice.git
 cd AppGiaoHang-Dotnet-Microservice
 ```
 
@@ -65,40 +63,17 @@ Tài khoản tạo sẵn:
 
 Khách hàng mới tự đăng ký trong app. Tài khoản tài xế chỉ Admin tạo được (Web Admin → **Tạo tài khoản**).
 
-### 3. Chạy Web Admin
+### 3. Chạy client
+
+Web Admin và hai app Android nằm ở branch `admin`, `customer`, `shipper`. Clone từng branch vào thư mục riêng và làm theo README của branch đó:
 
 ```powershell
-cd AdminWeb
-npm install
-npm run dev            # mở http://127.0.0.1:5173
+git clone -b admin    https://github.com/awtichcoder/AppGiaoHang-Dotnet-Microservice.git deliveryapp-admin
+git clone -b customer https://github.com/awtichcoder/AppGiaoHang-Dotnet-Microservice.git deliveryapp-customer
+git clone -b shipper  https://github.com/awtichcoder/AppGiaoHang-Dotnet-Microservice.git deliveryapp-shipper
 ```
 
-Vite chuyển tiếp `/api` và `/health` sang Gateway nên không gặp lỗi CORS. Đổi Gateway khác bằng biến `VITE_PROXY_TARGET` (xem `AdminWeb/.env.example`). Chi tiết: [AdminWeb/README.md](AdminWeb/README.md).
-
-### 4. Chạy hai app Android trên máy ảo (Emulator)
-
-Hai app là hai module của cùng project Gradle trong `MobileApp/`. Mặc định chúng gọi `http://10.0.2.2:6200/` — địa chỉ máy ảo dùng để gọi `localhost` của máy tính, nên **không cần sửa gì** khi chạy trên Emulator.
-
-**Cách 1 – Android Studio:** File → Open → chọn thư mục `MobileApp` → chờ Gradle Sync → chọn cấu hình `app` (Khách hàng) hoặc `shipper` (Tài xế) → Run. Không copy `local.properties` từ máy khác; Android Studio tự tạo.
-
-**Cách 2 – dòng lệnh** (máy ảo đang chạy, `JAVA_HOME` trỏ tới JDK 17, `ANDROID_HOME` trỏ tới Android SDK hoặc có file `MobileApp/local.properties` chứa `sdk.dir=...`):
-
-```powershell
-cd MobileApp
-.\gradlew.bat :app:installDebug          # app Khách hàng
-.\gradlew.bat :shipper:installDebug      # app Tài xế
-.\gradlew.bat testDebugUnitTest lintDebug assembleDebug   # test + lint + build cả hai
-```
-
-Đặt vị trí GPS cho máy ảo (kinh độ trước, vĩ độ sau), ví dụ Quận 1:
-
-```powershell
-adb emu geo fix 106.7019 10.7769
-```
-
-Chi tiết từng app: [MobileApp/README.md](MobileApp/README.md), [MobileApp/shipper/README.md](MobileApp/shipper/README.md).
-
-### 5. (Tùy chọn) Unit test Backend
+### 4. (Tùy chọn) Unit test Backend
 
 ```powershell
 dotnet test DeliveryApp.sln
@@ -143,15 +118,7 @@ Lưu ý quan trọng:
    ```
 
 4. Kiểm tra từ trình duyệt điện thoại: `http://192.168.1.10:6200/health/live` phải hiện `Healthy`.
-5. Build APK trỏ vào IP đó và cài lên điện thoại (gửi file qua Zalo/Drive hoặc `adb install`):
-
-   ```powershell
-   cd MobileApp
-   .\gradlew.bat :app:assembleDebug :shipper:assembleDebug -PapiBaseUrl=http://192.168.1.10:6200/
-   # app/build/outputs/apk/debug/app-debug.apk         → điện thoại Khách hàng
-   # shipper/build/outputs/apk/debug/shipper-debug.apk → điện thoại Tài xế
-   ```
-
+5. Build APK trỏ vào IP đó (tham số Gradle `-PapiBaseUrl=http://192.168.1.10:6200/`) từ branch `customer` và `shipper`, rồi cài lên điện thoại (gửi file qua Zalo/Drive hoặc `adb install`). Xem README của từng branch.
 6. Để hai điện thoại cạnh nhau; khi tạo đơn chọn điểm A bằng **Dùng vị trí hiện tại** để tài xế đang đứng đúng điểm lấy hàng. Bật GPS, cho phép quyền vị trí. Nếu IP máy tính đổi, build lại bước 5.
 
 ---
@@ -166,7 +133,7 @@ Backend của branch này lấy từ repo của Kha: **<https://github.com/Hoang
 - `GET /api/loyalty/me` có `availablePoints`, `tierDiscountPercent`; hạng SILVER từ 100, GOLD từ 500 điểm.
 - Delivery trả tọa độ điểm lấy/giao (phục vụ bản đồ theo dõi).
 - **Lấy hàng bắt buộc gửi GPS** trong 200 m quanh điểm lấy (`400 PICKUP_GPS_REQUIRED`, `409 PICKUP_TOO_FAR`).
-- Tạo đơn lỗi giữa chừng tự hoàn trả mã/điểm đã giữ (`ReleaseUncreatedOrder`), lỗi 401/403 trả JSON `{code, message, details}`, Gateway `/health/ready` kiểm tra đủ 7 service, CORS cho Web Admin, thư mục `AdminWeb`.
+- Tạo đơn lỗi giữa chừng tự hoàn trả mã/điểm đã giữ (`ReleaseUncreatedOrder`), lỗi 401/403 trả JSON `{code, message, details}`, Gateway `/health/ready` kiểm tra đủ 7 service, CORS cho Web Admin.
 
 ### Branch này sửa thêm (lỗi logic phát hiện khi cập nhật)
 
@@ -177,7 +144,7 @@ Backend của branch này lấy từ repo của Kha: **<https://github.com/Hoang
 | Outbox của Order/Delivery retry vô hạn cả với lỗi nghiệp vụ không bao giờ tự hết | `OutboxRetryPolicy`: lỗi 400/404/409/422 lặp 5 lần thì dừng (`PARKED:`), lỗi mạng/5xx vẫn retry. Xem [Outbox](#outbox-retry-và-tác-vụ-bị-dừng) |
 | App Tài xế gửi pickup rỗng → không lấy hàng được với BE mới | App gửi GPS mới (≤ 10 giây) khi lấy hàng, báo rõ khi ở xa |
 
-Đi kèm: thêm project `PromotionService.Tests`, test cho Loyalty và outbox (51 test BE), app Khách hàng có màn **Tạo đơn**, **Theo dõi đơn**, **Danh sách đơn** dùng API thật.
+Đi kèm: thêm project `PromotionService.Tests`, test cho Loyalty và outbox (51 test BE).
 
 ### Cập nhật máy đang chạy bản cũ
 
@@ -185,7 +152,7 @@ Không cần xóa dữ liệu: bản mới **không đổi cấu trúc database*
 
 ```powershell
 git fetch origin
-git switch Khoa-Deptrai           # hoặc: git switch -c Khoa-Deptrai origin/Khoa-Deptrai
+git switch BE-được-tách-ra-từ-cái-trước   # hoặc: git switch -c BE-được-tách-ra-từ-cái-trước origin/BE-được-tách-ra-từ-cái-trước
 docker compose up --build -d      # bắt buộc --build để build lại image các service
 Invoke-RestMethod http://localhost:6200/health/ready
 ```
@@ -199,7 +166,7 @@ git log --oneline origin/main..kha/kha-admin     # các commit Kha có mà main 
 git merge kha/kha-admin                          # trên branch của bạn, rồi build lại Docker
 ```
 
-Sau khi cập nhật BE: cài lại app Tài xế bản mới (bản cũ không gửi GPS khi lấy hàng).
+Sau khi cập nhật BE: cài lại app Tài xế bản mới từ branch `shipper` (bản cũ không gửi GPS khi lấy hàng).
 
 ---
 
@@ -213,9 +180,6 @@ Sau khi cập nhật BE: cài lại app Tài xế bản mới (bản cũ không 
 | "Không tìm thấy tài xế" | App Tài xế chưa bật nhận đơn / đang chạy nền / chưa có GPS, hoặc tài xế cách điểm lấy > 5 km |
 | "Bạn đang ở xa điểm lấy hàng" | Tài xế cách điểm lấy > 200 m. Emulator: `adb emu geo fix` tới điểm lấy |
 | Mã ưu đãi báo "đang được giữ cho một đơn khác" | Đúng thiết kế: mã giới hạn 1 lần/khách đang dùng cho đơn chưa xong của bạn |
-| Unit test Android lỗi `ClassNotFoundException` cho mọi class test | Đường dẫn project có dấu tiếng Việt (ví dụ `D:\test cô tú\...`). Clone repo vào thư mục không dấu như `D:\projects\deliveryapp` |
-| Gradle báo không tìm thấy SDK | Đặt `ANDROID_HOME` hoặc tạo `MobileApp/local.properties` với `sdk.dir=C\:\\Users\\<bạn>\\AppData\\Local\\Android\\Sdk` |
-| Web Admin lỗi đăng nhập/CORS | Mở qua `npm run dev` (cổng 5173) để dùng proxy, không mở file `dist` trực tiếp |
 | Outbox có tác vụ `PARKED:` | Lỗi nghiệp vụ không tự hết; xử lý nguyên nhân rồi chạy lại theo mục [Outbox](#outbox-retry-và-tác-vụ-bị-dừng) |
 
 ---
@@ -347,9 +311,7 @@ dotnet run --project IdentityService   # tương tự cho DriverService, MapServ
 ├── OrderService/               đơn hàng, giá, outbox
 ├── DeliveryService/            matching, chuyến giao, outbox
 ├── *.Tests/                    unit test (Order, Delivery, Loyalty, Promotion)
-├── AdminWeb/                   web quản trị (React + Vite)
-├── MobileApp/                  project Gradle: app/ (Khách hàng), shipper/ (Tài xế)
 ├── postman/, scripts/          collection Postman, script kiểm thử
 ├── docker-compose.yml, Dockerfile, .env.example
-└── .github/workflows/ci.yml    CI: test BE, build Android, build Admin web
+└── .github/workflows/ci.yml    CI: test BE
 ```

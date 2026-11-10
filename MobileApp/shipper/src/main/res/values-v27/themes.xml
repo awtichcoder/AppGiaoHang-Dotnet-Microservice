@@ -1,5 +1,0 @@
-<resources>
-    <style name="Theme.Shipper" parent="Theme.Shipper.Base">
-        <item name="android:windowLightNavigationBar">true</item>
-    </style>
-</resources>

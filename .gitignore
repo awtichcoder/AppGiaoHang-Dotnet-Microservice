@@ -293,11 +293,6 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
-# AdminWeb generated files
-AdminWeb/dist/
-AdminWeb/.vite/
-AdminWeb/tsconfig.tsbuildinfo
-
 # Visual Studio 6 build log
 *.plg
 

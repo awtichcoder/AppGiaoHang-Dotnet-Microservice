@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Figma · remix/toggle (node 286:379), knob left = đang nghỉ -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="43dp" android:height="43dp" android:viewportWidth="43" android:viewportHeight="43">
-    <path android:fillColor="#FFFFFF" android:fillType="evenOdd" android:pathData="M14.3333,12.5417C9.38579,12.5417 5.375,16.5525 5.375,21.5C5.375,26.4475 9.38579,30.4583 14.3333,30.4583H28.6667C33.6142,30.4583 37.625,26.4475 37.625,21.5C37.625,16.5525 33.6142,12.5417 28.6667,12.5417H14.3333ZM14.3333,8.95833H28.6667C35.5933,8.95833 41.2083,14.5734 41.2083,21.5C41.2083,28.4266 35.5933,34.0417 28.6667,34.0417H14.3333C7.40677,34.0417 1.79167,28.4266 1.79167,21.5C1.79167,14.5734 7.40677,8.95833 14.3333,8.95833Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M14.3333,26.875C11.3648,26.875 8.95833,24.4686 8.95833,21.5C8.95833,18.5314 11.3648,16.125 14.3333,16.125C17.3019,16.125 19.7083,18.5314 19.7083,21.5C19.7083,24.4686 17.3019,26.875 14.3333,26.875Z" />
-</vector>
