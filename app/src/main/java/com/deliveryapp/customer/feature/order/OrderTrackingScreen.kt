@@ -63,7 +63,8 @@ fun OrderTrackingScreen(
     viewModel: OrderTrackingViewModel,
     onOrders: () -> Unit,
     onReorder: () -> Unit,
-    onSessionExpired: () -> Unit
+    onSessionExpired: () -> Unit,
+    complaintSection: @Composable (DeliveryResponse?) -> Unit = {}
 ) {
     val state = viewModel.state
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -108,7 +109,10 @@ fun OrderTrackingScreen(
                 )
                 state.refreshWarning?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = DeliveryDanger) }
                 when {
-                    order != null -> TrackingContent(state, order, viewModel, onReorder)
+                    order != null -> {
+                        TrackingContent(state, order, viewModel, onReorder)
+                        if (order.status == OrderStatuses.COMPLETED) complaintSection(state.delivery)
+                    }
                     state.errorMessage != null -> ErrorState(state.errorMessage, viewModel::reload)
                     else -> LoadingState("Đang tải đơn hàng")
                 }

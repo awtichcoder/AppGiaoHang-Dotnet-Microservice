@@ -36,6 +36,13 @@ Lệnh thường dùng:
 
 Bản đồ dùng MapLibre + nền OpenFreeMap như app Tài xế. Trên Emulator, đặt vị trí bằng `adb emu geo fix <kinh độ> <vĩ độ>` trước khi bấm "Dùng vị trí hiện tại".
 
+## Khiếu nại
+
+- Màn **Theo dõi đơn** của đơn đã hoàn thành có nút **Khiếu nại** trong 24 giờ. Nếu đã gửi, màn hình hiện trạng thái thay cho nút. Server mới là nơi kiểm tra thời hạn thật.
+- Form gồm loại vấn đề, mô tả (tối đa 1000 ký tự) và tối đa 3 ảnh JPEG/PNG, mỗi ảnh 5 MB, chọn bằng Android Photo Picker (không cần quyền đọc bộ nhớ).
+- **Tài khoản → Khiếu nại của tôi**: danh sách và chi tiết (trạng thái, ghi chú của quản trị viên, ảnh tải qua API có xác thực).
+- Mã nguồn: `feature/complaint`, `data/api/ComplaintApi.kt`, `data/repository/ComplaintRepository.kt`.
+
 ## Yêu cầu môi trường
 
 - Android Studio có JDK 17 đi kèm.

@@ -10,6 +10,11 @@ object AppRoutes {
     const val Orders = "orders"
     const val Rewards = "rewards"
     const val Profile = "profile"
+    const val Complaints = "complaints"
+    const val ComplaintDetail = "complaints/{complaintId}"
+    const val ComplaintNew = "complaint-new/{orderId}"
 
     fun orderTracking(orderId: String) = "order/$orderId"
+    fun complaintDetail(complaintId: String) = "complaints/$complaintId"
+    fun complaintNew(orderId: String) = "complaint-new/$orderId"
 }

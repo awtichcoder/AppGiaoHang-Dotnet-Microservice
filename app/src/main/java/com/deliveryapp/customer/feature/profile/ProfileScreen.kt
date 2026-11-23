@@ -31,6 +31,7 @@ import com.deliveryapp.customer.ui.theme.DeliveryMuted
 fun ProfileScreen(
     viewModel: ProfileViewModel,
     onLogout: () -> Unit,
+    onComplaints: () -> Unit,
     onHome: () -> Unit,
     onOrders: () -> Unit,
     onRewards: () -> Unit,
@@ -74,7 +75,7 @@ fun ProfileScreen(
                 when {
                     state.isLoading -> LoadingState("Đang tải tài khoản")
                     state.errorMessage != null && state.user == null -> ErrorState(state.errorMessage, viewModel::load)
-                    else -> AccountContent(state, viewModel::logout)
+                    else -> AccountContent(state, viewModel::logout, onComplaints)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -83,7 +84,7 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun AccountContent(state: ProfileUiState, onLogoutClick: () -> Unit) {
+private fun AccountContent(state: ProfileUiState, onLogoutClick: () -> Unit, onComplaints: () -> Unit) {
     val user = state.user
     StatusBanner(
         title = "Hạng ${state.tier}",
@@ -97,6 +98,8 @@ private fun AccountContent(state: ProfileUiState, onLogoutClick: () -> Unit) {
         InfoRow("Điện thoại", user?.phone ?: "-")
         InfoRow("Vai trò", user?.role ?: "Customer")
     }
+
+    SecondaryAction(label = "Khiếu nại của tôi", onClick = onComplaints)
 
     DeliveryCard {
         Text(text = "Phiên đăng nhập", style = MaterialTheme.typography.titleLarge)

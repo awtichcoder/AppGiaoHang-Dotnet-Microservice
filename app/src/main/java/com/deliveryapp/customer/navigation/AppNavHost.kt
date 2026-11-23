@@ -15,6 +15,14 @@ import com.deliveryapp.customer.feature.auth.LoginScreen
 import com.deliveryapp.customer.feature.auth.RegisterScreen
 import com.deliveryapp.customer.feature.auth.SessionCheckScreen
 import com.deliveryapp.customer.feature.auth.SessionViewModel
+import com.deliveryapp.customer.feature.complaint.ComplaintDetailScreen
+import com.deliveryapp.customer.feature.complaint.ComplaintDetailViewModel
+import com.deliveryapp.customer.feature.complaint.ComplaintEntryCard
+import com.deliveryapp.customer.feature.complaint.ComplaintEntryViewModel
+import com.deliveryapp.customer.feature.complaint.ComplaintFormScreen
+import com.deliveryapp.customer.feature.complaint.ComplaintFormViewModel
+import com.deliveryapp.customer.feature.complaint.ComplaintListScreen
+import com.deliveryapp.customer.feature.complaint.ComplaintListViewModel
 import com.deliveryapp.customer.feature.home.HomeScreen
 import com.deliveryapp.customer.feature.home.HomeViewModel
 import com.deliveryapp.customer.feature.order.CreateOrderScreen
@@ -117,6 +125,58 @@ fun AppNavHost(navController: NavHostController) {
                 viewModel = trackingViewModel,
                 onOrders = { openMain(AppRoutes.Orders) },
                 onReorder = { navController.navigate(AppRoutes.CreateOrder) },
+                onSessionExpired = { openLoginCleared() },
+                complaintSection = { delivery ->
+                    val entryViewModel: ComplaintEntryViewModel =
+                        viewModel(factory = ComplaintEntryViewModel.factory(container, orderId))
+                    ComplaintEntryCard(
+                        viewModel = entryViewModel,
+                        completedAt = delivery?.completedAt,
+                        onCreate = { navController.navigate(AppRoutes.complaintNew(orderId)) },
+                        onOpen = { navController.navigate(AppRoutes.complaintDetail(it)) },
+                        onSessionExpired = { openLoginCleared() }
+                    )
+                }
+            )
+        }
+        composable(
+            AppRoutes.ComplaintNew,
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { entry ->
+            val orderId = entry.arguments?.getString("orderId").orEmpty()
+            val formViewModel: ComplaintFormViewModel =
+                viewModel(factory = ComplaintFormViewModel.factory(container, orderId))
+            ComplaintFormScreen(
+                viewModel = formViewModel,
+                onBack = { navController.popBackStack() },
+                // Back from the detail must not reopen the submitted form.
+                onCreated = { complaintId ->
+                    navController.navigate(AppRoutes.complaintDetail(complaintId)) {
+                        popUpTo(AppRoutes.ComplaintNew) { inclusive = true }
+                    }
+                },
+                onSessionExpired = { openLoginCleared() }
+            )
+        }
+        composable(AppRoutes.Complaints) {
+            val listViewModel: ComplaintListViewModel = viewModel(factory = ComplaintListViewModel.factory(container))
+            ComplaintListScreen(
+                viewModel = listViewModel,
+                onOpen = { navController.navigate(AppRoutes.complaintDetail(it)) },
+                onBack = { navController.popBackStack() },
+                onSessionExpired = { openLoginCleared() }
+            )
+        }
+        composable(
+            AppRoutes.ComplaintDetail,
+            arguments = listOf(navArgument("complaintId") { type = NavType.StringType })
+        ) { entry ->
+            val complaintId = entry.arguments?.getString("complaintId").orEmpty()
+            val detailViewModel: ComplaintDetailViewModel =
+                viewModel(factory = ComplaintDetailViewModel.factory(container, complaintId))
+            ComplaintDetailScreen(
+                viewModel = detailViewModel,
+                onBack = { navController.popBackStack() },
                 onSessionExpired = { openLoginCleared() }
             )
         }
@@ -146,6 +206,7 @@ fun AppNavHost(navController: NavHostController) {
             ProfileScreen(
                 viewModel = profileViewModel,
                 onLogout = { openLoginCleared() },
+                onComplaints = { navController.navigate(AppRoutes.Complaints) },
                 onHome = { openMain(AppRoutes.Home) },
                 onOrders = { openMain(AppRoutes.Orders) },
                 onRewards = { openMain(AppRoutes.Rewards) },
