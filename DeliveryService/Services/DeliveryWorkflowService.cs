@@ -86,6 +86,26 @@ public sealed class DeliveryWorkflowService(
         };
     }
 
+    public async Task<PagedResponse<DeliveryResponse>> GetDriverHistoryAsync(
+        Guid driverId, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        if (page < 1 || pageSize is < 1 or > 100)
+            throw new ApiException(400, "INVALID_PAGINATION", "page phải >= 1 và pageSize trong khoảng 1..100.");
+        var query = db.Deliveries.AsNoTracking().Where(x => x.DriverId == driverId
+            && (x.Status == DeliveryStatus.COMPLETED || x.Status == DeliveryStatus.CANCELLED));
+        var total = await query.CountAsync(cancellationToken);
+        var rows = await query.OrderByDescending(x => x.CompletedAt ?? x.CancelledAt).ThenBy(x => x.DeliveryId)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        return new PagedResponse<DeliveryResponse>
+        {
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = total,
+            // Chuyến đã kết thúc: tài xế không cần giữ số điện thoại người nhận.
+            Items = rows.Select(x => ToResponse(x, includePhone: false)).ToList()
+        };
+    }
+
     public async Task<AcceptOfferResponse> AcceptOfferAsync(Guid offerId, Guid driverId, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
@@ -241,6 +261,12 @@ public sealed class DeliveryWorkflowService(
         if (delivery is null) return null;
         EnsureCanRead(delivery, actorId, role);
         return ToResponse(delivery, includePhone: delivery.Status != DeliveryStatus.SEARCHING || role == "CUSTOMER" || role == "ADMIN");
+    }
+
+    public async Task<DeliveryComplaintContextResponse?> GetComplaintContextAsync(Guid orderId, CancellationToken cancellationToken)
+    {
+        var delivery = await db.Deliveries.AsNoTracking().FirstOrDefaultAsync(x => x.OrderId == orderId, cancellationToken);
+        return delivery is null ? null : DeliveryComplaintContextResponse.From(delivery);
     }
 
     public async Task<MatchingStatusResponse?> GetMatchingStatusAsync(Guid orderId, Guid actorId, string role, CancellationToken cancellationToken)

@@ -55,7 +55,7 @@ $driverAuth = Token $driverEmail $password
 $orderIds = [System.Collections.Generic.List[string]]::new()
 try {
     $ready = Api GET '/health/ready'
-    Assert-Check ($ready.status -eq 'Ready' -and @($ready.dependencies).Count -eq 7) 'Gateway checks all seven dependencies'
+    Assert-Check ($ready.status -eq 'Ready' -and @($ready.dependencies).Count -eq 8) 'Gateway checks all eight dependencies'
     $unauthorized = Api GET '/api/identity/me' -Expected 401
     Assert-Check ($unauthorized.code -and $unauthorized.message -and $unauthorized.PSObject.Properties.Name.Contains('details')) '401 has code/message/details'
     $forbidden = Api PATCH '/api/driver/me/availability' @{availabilityStatus='AVAILABLE'} $auth 403

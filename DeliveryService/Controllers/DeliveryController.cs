@@ -38,6 +38,12 @@ public sealed class DeliveryController(
         => Ok(await workflow.GetMyOffersAsync(User.SubjectId(), page, pageSize, cancellationToken));
 
     [Authorize(Roles = "DRIVER")]
+    [HttpGet("history/me")]
+    public async Task<ActionResult<PagedResponse<DeliveryResponse>>> GetMyHistory(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+        => Ok(await workflow.GetDriverHistoryAsync(User.SubjectId(), page, pageSize, cancellationToken));
+
+    [Authorize(Roles = "DRIVER")]
     [HttpPost("offers/{offerId:guid}/accept")]
     public async Task<ActionResult<AcceptOfferResponse>> Accept(Guid offerId, CancellationToken cancellationToken)
         => Ok(await workflow.AcceptOfferAsync(offerId, User.SubjectId(), cancellationToken));
@@ -77,6 +83,15 @@ public sealed class DeliveryController(
     public async Task<ActionResult<MatchingStatusResponse>> GetMatchingStatus(Guid orderId, CancellationToken cancellationToken)
     {
         var result = await workflow.GetMatchingStatusAsync(orderId, User.SubjectId(), Role(), cancellationToken);
+        return result is null ? throw new ApiException(404, "DELIVERY_NOT_FOUND", "Không tìm thấy delivery.") : Ok(result);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("order/{orderId:guid}/complaint-context")]
+    public async Task<ActionResult<DeliveryComplaintContextResponse>> GetComplaintContext(Guid orderId, CancellationToken cancellationToken)
+    {
+        RequireInternalKey();
+        var result = await workflow.GetComplaintContextAsync(orderId, cancellationToken);
         return result is null ? throw new ApiException(404, "DELIVERY_NOT_FOUND", "Không tìm thấy delivery.") : Ok(result);
     }
 

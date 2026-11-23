@@ -85,6 +85,28 @@ public sealed class DeliveryResponse
     public DateTime? CancelledAt { get; set; }
 }
 
+/// <summary>Dữ liệu tối thiểu cho ComplaintService (API nội bộ). CompletedAt luôn là UTC.</summary>
+public sealed class DeliveryComplaintContextResponse
+{
+    public Guid OrderId { get; set; }
+    public Guid CustomerId { get; set; }
+    public Guid? DriverId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime? CompletedAt { get; set; }
+
+    public static DeliveryComplaintContextResponse From(Entities.Delivery delivery) => new()
+    {
+        OrderId = delivery.OrderId,
+        CustomerId = delivery.CustomerId,
+        DriverId = delivery.DriverId,
+        Status = delivery.Status.ToString(),
+        // SQL Server trả Kind = Unspecified; gắn UTC để JSON có hậu tố Z.
+        CompletedAt = delivery.CompletedAt is DateTime completedAt
+            ? DateTime.SpecifyKind(completedAt, DateTimeKind.Utc)
+            : null
+    };
+}
+
 public sealed class DeliveryOfferResponse
 {
     public Guid OfferId { get; set; }

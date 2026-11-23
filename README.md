@@ -4,7 +4,7 @@ Branch `BE-được-tách-ra-từ-cái-trước` chỉ chứa **Backend**, tách
 
 | Thành phần | Nơi chứa | Công nghệ |
 |---|---|---|
-| Backend: API Gateway (YARP) + 7 microservice + SQL Server | branch này (`ApiGateway/`, `*Service/`) | .NET 9, EF Core, Docker |
+| Backend: API Gateway (YARP) + 8 microservice + SQL Server | branch này (`ApiGateway/`, `*Service/`) | .NET 9, EF Core, Docker |
 | App **Khách hàng**: đặt đơn, theo dõi đơn, điểm thưởng | branch `customer` | Android, Kotlin, Jetpack Compose |
 | App **Tài xế**: nhận lời mời, lấy hàng, giao hàng | branch `shipper` | Android, Kotlin, Jetpack Compose |
 | Web **Quản trị**: tổng quan, đơn hàng, tạo tài khoản tài xế | branch `admin` | React 19, Vite, TypeScript |
@@ -21,6 +21,7 @@ Mọi client chỉ gọi **API Gateway** `http://localhost:6200`.
 4. [Cập nhật BE theo repo của Kha](#cập-nhật-be-theo-repo-của-kha)
 5. [Lỗi thường gặp](#lỗi-thường-gặp)
 6. [Tham chiếu Backend](#tham-chiếu-backend) (kiến trúc, API, outbox)
+7. [Khiếu nại](#khiếu-nại)
 
 ---
 
@@ -46,7 +47,7 @@ cd AppGiaoHang-Dotnet-Microservice
 Copy-Item .env.example .env        # Git Bash: cp .env.example .env
 docker compose up --build -d
 docker compose ps                   # chờ tất cả "healthy" (lần đầu 5–10 phút)
-Invoke-RestMethod http://localhost:6200/health/ready   # status = Ready, đủ 7 dependencies
+Invoke-RestMethod http://localhost:6200/health/ready   # status = Ready, đủ 8 dependencies
 ```
 
 - Lần đầu Docker tải image .NET 9 và SQL Server nên lâu. Database và tài khoản mẫu được tạo tự động (migration chạy khi container khởi động).
@@ -181,6 +182,7 @@ Sau khi cập nhật BE: cài lại app Tài xế bản mới từ branch `shipp
 | "Bạn đang ở xa điểm lấy hàng" | Tài xế cách điểm lấy > 200 m. Emulator: `adb emu geo fix` tới điểm lấy |
 | Mã ưu đãi báo "đang được giữ cho một đơn khác" | Đúng thiết kế: mã giới hạn 1 lần/khách đang dùng cho đơn chưa xong của bạn |
 | Outbox có tác vụ `PARKED:` | Lỗi nghiệp vụ không tự hết; xử lý nguyên nhân rồi chạy lại theo mục [Outbox](#outbox-retry-và-tác-vụ-bị-dừng) |
+| `docker compose up --build` báo `x-docker-expose-session-sharedkey ... non-printable ASCII` | Đường dẫn thư mục có dấu tiếng Việt. Clone hoặc sao chép repo sang thư mục không dấu, ví dụ `C:\src\deliveryapp`, rồi chạy lại |
 
 ---
 
@@ -198,6 +200,7 @@ Sau khi cập nhật BE: cài lại app Tài xế bản mới từ branch `shipp
 | MapService | `http://localhost:6205` |
 | OrderService | `http://localhost:6206` |
 | PromotionService | `http://localhost:6207` |
+| ComplaintService | `http://localhost:6208` |
 | SQL Server | `localhost:1433` |
 
 Client chỉ nên gọi Gateway. Các endpoint nội bộ dùng `X-Internal-Key` không được public qua Gateway.
@@ -219,7 +222,7 @@ DeliveryService ── DriverService 3 km ──> offer tuần tự 30 giây
                 └─ accept ─────────> đồng bộ trạng thái Order qua Outbox
 ```
 
-- Mỗi service sở hữu database riêng: `DeliveryApp_Identity`, `DeliveryApp_Driver`, `DeliveryApp_Order`, `DeliveryApp_Delivery`, `DeliveryApp_Promotion`, `DeliveryApp_Loyalty`.
+- Mỗi service sở hữu database riêng: `DeliveryApp_Identity`, `DeliveryApp_Driver`, `DeliveryApp_Order`, `DeliveryApp_Delivery`, `DeliveryApp_Promotion`, `DeliveryApp_Loyalty`, `DeliveryApp_Complaint`.
 - `clientRequestId` + hash nội dung chống tạo trùng. Cùng ID và cùng payload trả đơn cũ; cùng ID nhưng payload khác trả `409`.
 - Giá do server tính: `baseFee = distanceKm × 10.000`, phụ phí `20%`, phí nền tảng `3.000` VNĐ. 1 điểm = 1.000đ; hoàn tất đơn được 1 điểm / 10.000đ.
 - Matching lưu snapshot ứng viên theo bán kính `[3, 5]`, xáo thứ tự rồi mời từng người, mỗi lời mời 30 giây.
@@ -247,7 +250,7 @@ Test tài xế bằng API: đăng nhập `driver@deliveryapp.local`, gọi `PATC
 - **Order**: `POST /api/order/preview`, `POST /api/order`, `GET /api/order?page=&pageSize=&status=`, `GET /api/order/{orderId}`, `POST /api/order/{orderId}/cancel`
 - **Promotion**: `GET /api/promotion`
 - **Loyalty** (CUSTOMER): `GET /api/loyalty/me`, `POST /api/loyalty/preview`
-- **Delivery**: `GET /api/delivery/offers/me`, `POST /api/delivery/offers/{offerId}/accept|reject`, `POST /api/delivery/{deliveryId}/pickup|start|complete`, `GET /api/delivery/order/{orderId}`, `GET /api/delivery/order/{orderId}/matching-status`, `GET /api/delivery/{deliveryId}/location`
+- **Delivery**: `GET /api/delivery/offers/me`, `GET /api/delivery/history/me?page=&pageSize=` (DRIVER: chuyến đã hoàn thành hoặc đã hủy của chính mình, mới nhất trước, không kèm SĐT người nhận), `POST /api/delivery/offers/{offerId}/accept|reject`, `POST /api/delivery/{deliveryId}/pickup|start|complete`, `GET /api/delivery/order/{orderId}`, `GET /api/delivery/order/{orderId}/matching-status`, `GET /api/delivery/{deliveryId}/location`
 
 Pickup cần body `{"gpsLatitude": ..., "gpsLongitude": ...}`. Vị trí tài xế chỉ trả khi đơn `ASSIGNED`/`PICKED_UP`/`DELIVERING` và GPS ≤ 60 giây (`404 DRIVER_LOCATION_STALE` nếu cũ hơn).
 
@@ -259,7 +262,7 @@ Lỗi luôn theo mẫu:
 
 ### API nội bộ (chỉ trong mạng Docker, cần `X-Internal-Key`)
 
-- DeliveryService: `/api/delivery/quote`, `/api/delivery/assign`, `/api/delivery/order/{orderId}/cancel`
+- DeliveryService: `/api/delivery/quote`, `/api/delivery/assign`, `/api/delivery/order/{orderId}/cancel`, `GET /api/delivery/order/{orderId}/complaint-context`
 - OrderService: `PATCH /api/order/{orderId}/status`
 - MapService: `/api/map/route/quote`
 - PromotionService: `/api/promotion/validate`, `/reserve`, `/reservations/{id}/commit|release`, `/orders/{orderId}/release`
@@ -310,8 +313,52 @@ dotnet run --project IdentityService   # tương tự cho DriverService, MapServ
 ├── LoyaltyService/             điểm thưởng
 ├── OrderService/               đơn hàng, giá, outbox
 ├── DeliveryService/            matching, chuyến giao, outbox
-├── *.Tests/                    unit test (Order, Delivery, Loyalty, Promotion)
+├── ComplaintService/           khiếu nại, ảnh đính kèm lưu tạm
+├── *.Tests/                    unit test (Order, Delivery, Loyalty, Promotion, Complaint)
 ├── postman/, scripts/          collection Postman, script kiểm thử
 ├── docker-compose.yml, Dockerfile, .env.example
 └── .github/workflows/ci.yml    CI: test BE
+```
+
+---
+
+## Khiếu nại
+
+`ComplaintService` (cổng 6208, database `DeliveryApp_Complaint`) nhận khiếu nại của khách và tài xế cho đơn đã hoàn thành. **Xử lý hoàn toàn thủ công:** admin xem, ghi chú và đổi trạng thái. Hệ thống không tự đền bù, không đổi tiền, điểm thưởng hay đánh giá.
+
+### Endpoint (qua Gateway)
+
+| Method, đường dẫn | Quyền | Mô tả |
+|---|---|---|
+| `POST /api/complaint` | CUSTOMER, DRIVER | `multipart/form-data`: `orderId`, `category`, `description`, `files` (0–3) |
+| `GET /api/complaint/me?orderId=&page=&pageSize=` | CUSTOMER, DRIVER | Khiếu nại của chính mình. `orderId` là tùy chọn, để app biết đơn đã có khiếu nại chưa |
+| `GET /api/complaint/{id}` | Chủ khiếu nại, ADMIN | Chi tiết |
+| `GET /api/complaint/{id}/attachments/{attachmentId}` | Chủ khiếu nại, ADMIN | Tải ảnh, không lộ đường dẫn trên đĩa |
+| `GET /api/complaint/admin?status=&page=&pageSize=` | ADMIN | Danh sách, lọc theo trạng thái |
+| `PATCH /api/complaint/admin/{id}/status` | ADMIN | Body `{ "status": "...", "adminNote": "..." }` |
+
+`category`: `LATE_DELIVERY`, `WRONG_ITEM`, `DAMAGED_ITEM`, `DRIVER_BEHAVIOR`, `OTHER`. Trạng thái đi theo `OPEN → IN_REVIEW → RESOLVED | REJECTED`; `adminNote` bắt buộc khi `REJECTED`.
+
+### Quy tắc
+
+- **24 giờ:** server tính từ `CompletedAt` của DeliveryService. Đúng mốc 24:00:00 vẫn được gửi, quá mốc trả `409 COMPLAINT_WINDOW_CLOSED`.
+- **Một đơn, một bên:** tối đa 1 khiếu nại từ khách và 1 từ tài xế, được unique index bảo vệ khi gửi đồng thời (`409 COMPLAINT_ALREADY_EXISTS`).
+- **Quyền:** khách chỉ khiếu nại đơn của mình, tài xế chỉ khiếu nại chuyến mình đã nhận (`403 COMPLAINT_FORBIDDEN`).
+- **Mã lỗi khác:** `COMPLAINT_ORDER_NOT_COMPLETED`, `COMPLAINT_INVALID_TRANSITION`, `COMPLAINT_ADMIN_NOTE_REQUIRED`, `COMPLAINT_INVALID_CATEGORY`, `COMPLAINT_INVALID_DESCRIPTION`, `COMPLAINT_INVALID_FILE`, `COMPLAINT_TOO_MANY_FILES`, `COMPLAINT_FILE_TOO_LARGE`, `DELIVERY_SERVICE_UNAVAILABLE`.
+
+Thông tin đơn lấy từ API nội bộ `GET /api/delivery/order/{orderId}/complaint-context` (cần `X-Internal-Key`, Gateway không route), vì DeliveryService là nơi duy nhất có đồng thời `CustomerId`, `DriverId` và `CompletedAt`.
+
+### Ảnh đính kèm: chỉ lưu TẠM
+
+> Đây là **lưu tạm trên đĩa cục bộ, chưa phải lưu trữ lâu dài**: không có sao lưu, không nhân bản giữa nhiều máy chủ.
+
+- Thư mục cấu hình bằng `COMPLAINT_UPLOAD_DIR`. Docker gắn thư mục này với volume `deliveryapp_complaint_uploads`, nên `docker compose down -v` sẽ xóa ảnh.
+- Tối đa 3 ảnh, mỗi ảnh 5 MB, chỉ JPEG/PNG (kiểm tra cả Content-Type lẫn magic bytes). Tên file do server sinh bằng GUID.
+- `ComplaintCleanupWorker` chạy mỗi 6 giờ (`Complaint__CleanupIntervalMinutes`), xóa file và dòng dữ liệu của ảnh thuộc khiếu nại `RESOLVED`/`REJECTED` đã quá 30 ngày kể từ `ResolvedAt`. Nội dung khiếu nại vẫn được giữ.
+
+### Kiểm thử
+
+```powershell
+dotnet test ComplaintService.Tests
+./scripts/Test-ComplaintIntegration.ps1   # cần Docker đang chạy; tạo dữ liệu thử, không chạy trên production
 ```
