@@ -31,7 +31,10 @@ fun TripAction(trip: Trip, loading: Boolean, onAdvance: (TripStatus) -> Unit) {
 }
 
 @Composable
-fun DetailScreen(trip: Trip?, state: WorkUiState, readOnly: Boolean, onBack: () -> Unit, onMap: () -> Unit, onAdvance: (TripStatus) -> Unit) {
+fun DetailScreen(
+    trip: Trip?, state: WorkUiState, readOnly: Boolean, onBack: () -> Unit, onMap: () -> Unit, onAdvance: (TripStatus) -> Unit,
+    footer: @Composable (Trip) -> Unit = {},
+) {
     AppScreen("Chi tiết chuyến", onBack = onBack) {
         DemoBadge()
         if (trip == null) EmptyState("Không có chuyến đang giao", "Về trang chủ để xem lời mời mới.")
@@ -53,6 +56,7 @@ fun DetailScreen(trip: Trip?, state: WorkUiState, readOnly: Boolean, onBack: () 
                 state.error?.let { ErrorState(it) }
                 TripAction(trip, state.loading, onAdvance)
             }
+            footer(trip)
         }
     }
 }

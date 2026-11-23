@@ -27,6 +27,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.*
 import com.deliveryapp.shipper.ShipperApplication
 import com.deliveryapp.shipper.feature.auth.*
+import com.deliveryapp.shipper.feature.complaint.*
 import com.deliveryapp.shipper.feature.work.*
 import com.deliveryapp.shipper.feature.home.HomeScreen
 import com.deliveryapp.shipper.feature.promotion.PromotionScreen
@@ -44,6 +45,8 @@ object Routes {
     const val Offer = "offer"; const val Detail = "detail"; const val Tracking = "tracking"
     const val Completed = "completed"; const val History = "history"; const val Profile = "profile"
     const val HistoryDetail = "history/{id}"; const val Promotions = "promotions"
+    const val Complaints = "complaints"; const val ComplaintDetail = "complaints/{id}"
+    const val ComplaintNew = "complaint-new/{orderId}"
 }
 @Composable
 fun ShipperNavHost(auth: AuthViewModel, work: WorkViewModel, settings: SettingsViewModel, largeText: Boolean) {
@@ -57,6 +60,7 @@ fun ShipperNavHost(auth: AuthViewModel, work: WorkViewModel, settings: SettingsV
     val owner = LocalLifecycleOwner.current
     val container = (LocalContext.current.applicationContext as ShipperApplication).container
     val location: LocationViewModel = viewModel(factory = container.factory)
+    val complaints: ComplaintViewModel = viewModel(factory = container.factory)
     val context = LocalContext.current
     // The backend only offers trips to drivers with a fresh GPS position, so ask before going online.
     val goOnlinePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -81,6 +85,7 @@ fun ShipperNavHost(auth: AuthViewModel, work: WorkViewModel, settings: SettingsV
         } else if (authState.user == null && currentRoute != null && currentRoute != Routes.Splash && currentRoute != Routes.Login) {
             work.reset()
             location.reset()
+            complaints.reset()
             nav.navigate(Routes.Login) { popUpTo(0) { inclusive = true } }
         }
     }
@@ -123,7 +128,11 @@ fun ShipperNavHost(auth: AuthViewModel, work: WorkViewModel, settings: SettingsV
             HomeScreen(authState.user, workState, locationState, bottom, ::toggleAvailability,
                 work::accept, work::reject, work::advance)
         }
-        composable(Routes.Completed) { CompletedScreen(::home) }
+        composable(Routes.Completed) {
+            // Goes through the trip detail, which applies the 24-hour and one-report rules.
+            val finished = workState.completed
+            CompletedScreen(::home, finished?.let { trip -> { nav.navigate("history/${Uri.encode(trip.deliveryId)}") } })
+        }
         composable(Routes.Promotions) { PromotionScreen(bottom) }
         composable(Routes.History) {
             LaunchedEffect(Unit) { work.loadHistory() }
@@ -131,11 +140,28 @@ fun ShipperNavHost(auth: AuthViewModel, work: WorkViewModel, settings: SettingsV
         }
         composable(Routes.HistoryDetail) { entry ->
             val trip = workState.history.find { it.deliveryId == entry.arguments?.getString("id") }
-            DetailScreen(trip, workState, true, { nav.popBackStack() }, {}, {})
+            DetailScreen(trip, workState, true, { nav.popBackStack() }, {}, {}) { shown ->
+                ComplaintEntry(complaints, shown,
+                    onReport = { nav.navigate("complaint-new/${Uri.encode(shown.orderId)}") },
+                    onOpen = { nav.navigate("complaints/${Uri.encode(it)}") })
+            }
+        }
+        composable(Routes.ComplaintNew) { entry ->
+            val orderId = entry.arguments?.getString("orderId").orEmpty()
+            ComplaintFormScreen(complaints, orderId, { nav.popBackStack() }) { id ->
+                nav.navigate("complaints/${Uri.encode(id)}") { popUpTo(Routes.ComplaintNew) { inclusive = true } }
+            }
+        }
+        composable(Routes.Complaints) {
+            ComplaintListScreen(complaints, { nav.popBackStack() }) { nav.navigate("complaints/${Uri.encode(it)}") }
+        }
+        composable(Routes.ComplaintDetail) { entry ->
+            ComplaintDetailScreen(complaints, entry.arguments?.getString("id").orEmpty()) { nav.popBackStack() }
         }
         composable(Routes.Profile) {
-            ProfileScreen(authState, workState, largeText, settingsError, bottom, settings::largeText, { demoDialog = true }) {
-                if (work.state.value.active == null && !work.state.value.loading) auth.logout { work.reset(); location.reset() }
+            ProfileScreen(authState, workState, largeText, settingsError, bottom, settings::largeText, { demoDialog = true },
+                { nav.navigate(Routes.Complaints) }) {
+                if (work.state.value.active == null && !work.state.value.loading) auth.logout { work.reset(); location.reset(); complaints.reset() }
             }
         }
     }

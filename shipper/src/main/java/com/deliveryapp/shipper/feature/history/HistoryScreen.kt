@@ -45,7 +45,9 @@ fun HistoryScreen(state: WorkUiState, bottomBar: @Composable () -> Unit, onRefre
                         HorizontalDivider(color = DeliveryBorder)
                         RouteStops(trip.pickupAddress, trip.dropoffAddress)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(trip.totalFee?.let { money(it) + " phí giao" } ?: "Đã hủy", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                            // Server history also returns the order fee of cancelled trips, so check the status first.
+                            Text(if (trip.status == TripStatus.CANCELLED) "Đã hủy" else trip.totalFee?.let { money(it) + " phí giao" } ?: "—",
+                                Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
                             TextButton(onClick = { onDetail(trip.deliveryId) }, modifier = Modifier.testTag("history_${trip.deliveryId}")) { Text("Chi tiết") }
                         }
                     }

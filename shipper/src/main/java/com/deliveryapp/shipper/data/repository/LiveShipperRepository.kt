@@ -14,8 +14,8 @@ import kotlinx.coroutines.sync.withLock
 /**
  * Talks to the real backend through the API Gateway.
  *
- * The backend has no driver "trip history" or "current trip" endpoint, so history only contains
- * trips finished in this app session and an active trip is not restored after the process dies.
+ * History comes from the backend, so it survives a new login. The backend has no "current trip"
+ * endpoint, so an active trip is not restored after the process dies.
  */
 class LiveShipperRepository(
     private val tokens: TokenStore,
@@ -103,7 +103,23 @@ class LiveShipperRepository(
         return updated
     }
 
-    override suspend fun history(): List<Trip> = mutex.withLock { finished.toList() }
+    override suspend fun history(): List<Trip> {
+        val remote = try {
+            call { delivery.history() }.items.map { it.toDomain() }
+        } catch (e: RepositoryException) {
+            // Offline: still show the trips finished in this session instead of an empty error screen.
+            val local = mutex.withLock { finished.toList() }
+            if (local.isEmpty() || e.code == "SESSION_EXPIRED") throw e
+            return local
+        }
+        return mutex.withLock {
+            // The session copy keeps details the history endpoint omits (receiver phone, income estimate).
+            val local = finished.associateBy { it.deliveryId }
+            val remoteIds = remote.mapTo(mutableSetOf()) { it.deliveryId }
+            (remote.map { local[it.deliveryId] ?: it } + finished.filterNot { it.deliveryId in remoteIds })
+                .sortedByDescending { it.displayTime }
+        }
+    }
 
     override suspend fun reportLocation(): Boolean {
         val fix = location.read() ?: return false

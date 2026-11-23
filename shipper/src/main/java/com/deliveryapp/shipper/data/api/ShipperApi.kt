@@ -64,6 +64,7 @@ interface DriverApi {
 }
 interface DeliveryApi {
     @GET("api/delivery/offers/me") suspend fun offers(@Query("page") page: Int = 1, @Query("pageSize") pageSize: Int = 20): PageResponse<OfferResponse>
+    @GET("api/delivery/history/me") suspend fun history(@Query("page") page: Int = 1, @Query("pageSize") pageSize: Int = 100): PageResponse<DeliveryResponse>
     @POST("api/delivery/offers/{offerId}/accept") suspend fun accept(@Path("offerId") id: String): AcceptResponse
     @POST("api/delivery/offers/{offerId}/reject") suspend fun reject(@Path("offerId") id: String, @Body request: RejectRequest): RejectResponse
     @GET("api/delivery/order/{orderId}") suspend fun detail(@Path("orderId") id: String): DeliveryResponse
@@ -71,4 +72,4 @@ interface DeliveryApi {
     @POST("api/delivery/{id}/start") suspend fun start(@Path("id") id: String): DeliveryResponse
     @POST("api/delivery/{id}/complete") suspend fun complete(@Path("id") id: String): DeliveryResponse
 }
-// No DRIVER history/current-trip endpoint has been verified. Do not invent one here.
+// No DRIVER current-trip endpoint has been verified. Do not invent one here.

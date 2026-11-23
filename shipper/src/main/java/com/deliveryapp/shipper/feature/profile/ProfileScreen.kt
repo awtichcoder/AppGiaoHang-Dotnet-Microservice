@@ -20,11 +20,11 @@ import com.deliveryapp.shipper.ui.theme.*
 
 @Composable
 fun ProfileScreen(auth: AuthUiState, work: WorkUiState, largeText: Boolean, settingsError: String?,
-    bottomBar: @Composable () -> Unit, onText: (Boolean) -> Unit, onDemo: () -> Unit, onLogout: () -> Unit) {
+    bottomBar: @Composable () -> Unit, onText: (Boolean) -> Unit, onDemo: () -> Unit, onComplaints: () -> Unit, onLogout: () -> Unit) {
     var confirm by rememberSaveable { mutableStateOf(false) }
     val demo = LocalDemoMode.current
     if (confirm) ConfirmDialog("Đăng xuất?",
-        if (demo) "Phiên dùng thử và lịch sử trong phiên sẽ được đặt lại." else "Bạn sẽ được chuyển sang trạng thái nghỉ và lịch sử trong phiên sẽ được đặt lại.", "Đăng xuất",
+        if (demo) "Phiên dùng thử và lịch sử trong phiên sẽ được đặt lại." else "Bạn sẽ được chuyển sang trạng thái nghỉ.", "Đăng xuất",
         { confirm = false }, { confirm = false; onLogout() })
     AppScreen("Tài khoản", bottomBar = bottomBar) {
         DeliveryCard {
@@ -40,6 +40,7 @@ fun ProfileScreen(auth: AuthUiState, work: WorkUiState, largeText: Boolean, sett
             InfoRow("Điện thoại", auth.user?.phone ?: "Chưa cập nhật")
             InfoRow("Trạng thái", work.availability.label)
         }
+        SecondaryAction("Báo cáo sự cố của tôi", onComplaints, Modifier.testTag("my_complaints"), icon = Icons.Outlined.ReportProblem)
         SectionTitle("Cài đặt")
         settingsError?.let { ErrorState(it) }
         DeliveryCard {
@@ -60,7 +61,7 @@ fun ProfileScreen(auth: AuthUiState, work: WorkUiState, largeText: Boolean, sett
             Text("DeliveryApp dành cho tài xế", style = MaterialTheme.typography.titleMedium)
             Text(
                 if (demo) "Chuyến đi và lịch sử là dữ liệu dùng thử. Phiên được giữ khi xoay màn hình; khi ứng dụng bị hệ thống đóng, hãy đăng nhập lại để bắt đầu phiên mới."
-                else "Lời mời và chuyến đi lấy từ máy chủ DeliveryApp. Lịch sử hiển thị các chuyến hoàn thành trong phiên đăng nhập này; khi ứng dụng bị hệ thống đóng, hãy đăng nhập lại.",
+                else "Lời mời, chuyến đi và lịch sử lấy từ máy chủ DeliveryApp. Khi ứng dụng bị hệ thống đóng, hãy đăng nhập lại.",
                 style = MaterialTheme.typography.bodySmall, color = DeliveryMuted)
         }
         auth.error?.let { ErrorState(it) }

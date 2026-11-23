@@ -19,6 +19,11 @@ Mọi endpoint dùng Gateway. Không có API internal trong interface Retrofit.
 | Lấy hàng | POST /api/delivery/{id}/pickup | gpsLatitude/gpsLongitude nullable trong DTO thực |
 | Bắt đầu giao | POST /api/delivery/{id}/start | Chỉ từ PICKED_UP; DeliveryResponse |
 | Hoàn thành | POST /api/delivery/{id}/complete | Chỉ từ DELIVERING; DeliveryResponse |
+| Lịch sử chuyến | GET /api/delivery/history/me?page=1&pageSize=100 | PagedResponse<DeliveryResponse>; chỉ COMPLETED/CANCELLED của chính tài xế, không có receiverPhone |
+| Gửi báo cáo sự cố | POST /api/complaint | multipart: orderId, category, description, files (0–3); timeout riêng 120 giây |
+| Báo cáo của tôi | GET /api/complaint/me?orderId=&page=&pageSize= | PagedResponse; `orderId` để biết chuyến đã báo cáo chưa |
+| Chi tiết báo cáo | GET /api/complaint/{id} | Trạng thái, adminNote, attachments |
+| Ảnh báo cáo | GET /api/complaint/{id}/attachments/{attachmentId} | Tải qua Bearer token, không có URL tĩnh |
 
 Sheet dùng estimatedIncome/offerStatus trong ví dụ, code backend dùng incomeEstimate/status. Kotlin DTO theo code backend. Không lấy tổng phí làm tiền tài xế thực nhận. Offer model không có số điện thoại người nhận.
 
@@ -37,7 +42,7 @@ Sheet dùng estimatedIncome/offerStatus trong ví dụ, code backend dùng incom
 1. Viết NetworkAuthRepository: login → lưu token → GET me → kiểm tra DRIVER; role sai phải xóa token. Thêm restore session và thông báo session expired.
 2. Viết NetworkWorkRepository. Accept phải lưu orderId ngay khi receipt thành công, rồi GET detail. Nếu GET detail mất mạng, retry detail thay vì gửi accept lần nữa.
 3. Khôi phục active trip sau process death: backend hiện chưa có endpoint DRIVER lấy chuyến đang làm theo token. Thống nhất API với nhóm backend hoặc lưu orderId và xác minh lại quyền/trạng thái khi mở app.
-4. Chưa thấy API lịch sử riêng DRIVER. Giữ mock lịch sử có nhãn cho đến khi có hợp đồng thật. Không dùng danh sách đơn dành cho CUSTOMER.
+4. Lịch sử DRIVER dùng `GET /api/delivery/history/me`. Không dùng danh sách đơn dành cho CUSTOMER.
 5. Poll/push offer khi AVAILABLE và refresh chuyến khi foreground; 409 phải đọc lại trạng thái server. UI không phải nguồn quyết định cuối cùng.
 6. GPS foreground: xin quyền, xác định tần suất và độ chính xác, gửi recordedAt UTC. Chưa triển khai background location hay foreground service.
 7. Chạy contract/integration tests với Gateway đang hoạt động; không gọi service-to-service.

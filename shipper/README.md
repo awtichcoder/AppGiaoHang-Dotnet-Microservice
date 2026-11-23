@@ -92,7 +92,7 @@ APK debug: `shipper/build/outputs/apk/debug/shipper-debug.apk`.
 ## Giới hạn có chủ đích
 
 - AppContainer hiện inject MockShipperRepository. Retrofit API và JWT storage là phần chuẩn bị; không có công tắc giả cho rằng đã tích hợp backend thật.
-- Lịch sử là dữ liệu mô phỏng; chưa xác minh được API lịch sử riêng cho DRIVER.
+- Chế độ mock dùng lịch sử mô phỏng; bản nối Backend lấy lịch sử từ `GET /api/delivery/history/me`.
 - Phiên/chuyến dùng thử giữ trong ViewModel/repository khi xoay màn hình. Nếu tiến trình bị đóng, app trở về đăng nhập; không giả vờ khôi phục chuyến thật.
 - Cài đặt cỡ chữ được lưu bằng DataStore. Token live được chuẩn bị lưu mã hóa AES/GCM bằng Keystore; chế độ mock không lưu JWT.
 - Phí giao hàng không đồng nghĩa tiền thực nhận. Chỉ hiển thị incomeEstimate khi offer có dữ liệu.

@@ -30,7 +30,9 @@ Mặc định app Tài xế gọi Backend thật qua Gateway (`LiveShipperReposi
 - Khi bật nhận đơn, app xin quyền vị trí, gửi GPS mỗi 15 giây (Backend chỉ ghép tài xế có vị trí trong 60 giây gần nhất, bán kính 3–5 km quanh điểm lấy hàng) và tự kiểm tra lời mời mỗi 3 giây.
 - Nhận/từ chối lời mời, lấy hàng → bắt đầu giao → hoàn thành đều gọi API Delivery thật.
 - Khi bấm lấy hàng, app gửi GPS hiện tại (không cũ quá 10 giây). Backend chỉ cho lấy hàng trong phạm vi 200 m quanh điểm lấy hàng; ở xa hơn app báo "Bạn đang ở xa điểm lấy hàng". Trên emulator, đặt vị trí đúng tại điểm lấy hàng trước khi bấm.
-- Backend chưa có API lịch sử/chuyến hiện tại cho tài xế, nên tab Lịch sử chỉ hiện chuyến hoàn thành trong phiên đăng nhập và chuyến đang giao không được khôi phục khi app bị đóng.
+- Tab Lịch sử lấy 100 chuyến hoàn thành/đã hủy gần nhất từ `GET /api/delivery/history/me`, nên vẫn còn sau khi đăng nhập lại. Backend chưa có API chuyến hiện tại, nên chuyến đang giao không được khôi phục khi app bị đóng.
+
+Báo cáo sự cố (khiếu nại): màn chi tiết chuyến đã hoàn thành trong tab Lịch sử có nút **Báo cáo sự cố** trong 24 giờ, mỗi chuyến một báo cáo; màn Hoàn thành có lối tắt tới đó. Xem lại ở **Tài khoản → Báo cáo sự cố của tôi**.
 
 Emulator: đặt vị trí gần điểm lấy hàng, ví dụ `adb emu geo fix 106.6996 10.7755` (kinh độ trước, vĩ độ sau) hoặc Extended Controls → Location.
 

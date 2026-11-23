@@ -118,6 +118,41 @@ class LiveRepositoryTest {
                 assertEquals("""{"gpsLatitude":10.7755,"gpsLongitude":106.6996}""", request.body.readUtf8())
             }
         }
+        server.enqueue(MockResponse().setBody(historyJson(deliveryJson("COMPLETED").replace("\"0912345678\"", "null"))))
+        val history = repo.history()
+        assertEquals("/api/delivery/history/me?page=1&pageSize=100", next().path)
+        assertEquals(listOf("d1"), history.map { it.deliveryId })
+        assertEquals("session copy keeps the phone", "0912345678", history.single().receiverPhone)
+    }
+
+    private fun historyJson(vararg items: String) =
+        """{"page":1,"pageSize":100,"totalItems":${items.size},"items":[${items.joinToString(",")}]}"""
+
+    @Test fun historyComesFromServerAfterANewLogin() = runTest {
+        tokens.save(TokenPair("access", "refresh"))
+        val older = deliveryJson("COMPLETED").replace("\"d1\"", "\"d2\"").replace("2026-11-03T16:50:00Z", "2026-11-02T16:50:00Z")
+        server.enqueue(MockResponse().setBody(historyJson(deliveryJson("COMPLETED"), older)))
+        val history = repo.history()
+        assertEquals(listOf("d1", "d2"), history.map { it.deliveryId })
+        assertEquals(Instant.parse("2026-11-03T16:50:00Z"), history.first().completedAt)
+    }
+
+    @Test fun historyWithoutSessionTripsReportsNetworkError() = runTest {
+        tokens.save(TokenPair("access", "refresh"))
+        server.enqueue(MockResponse().setResponseCode(503)
+            .setBody("""{"code":"SERVICE_UNAVAILABLE","message":"Máy chủ bận.","details":null}"""))
+        val error = runCatching { repo.history() }.exceptionOrNull() as RepositoryException
+        assertEquals("SERVICE_UNAVAILABLE", error.code)
+    }
+
+    @Test fun historyFallsBackToSessionTripsWhenServerFails() = runTest {
+        var trip = acceptedTrip()
+        for ((target, status) in listOf(TripStatus.PICKED_UP to "PICKED_UP", TripStatus.DELIVERING to "DELIVERING", TripStatus.COMPLETED to "COMPLETED")) {
+            server.enqueue(MockResponse().setBody(deliveryJson(status)))
+            trip = repo.advance(trip, target)
+        }
+        server.enqueue(MockResponse().setResponseCode(503)
+            .setBody("""{"code":"SERVICE_UNAVAILABLE","message":"Máy chủ bận.","details":null}"""))
         assertEquals(listOf("d1"), repo.history().map { it.deliveryId })
     }
 
