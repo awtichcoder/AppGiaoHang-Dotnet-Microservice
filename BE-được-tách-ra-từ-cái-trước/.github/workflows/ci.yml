@@ -1,0 +1,17 @@
+name: CI (Backend)
+
+on:
+  pull_request:
+  push:
+    branches: [main, Khoa-Deptrai, BE-được-tách-ra-từ-cái-trước]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+      - name: Unit tests
+        run: dotnet test DeliveryApp.sln

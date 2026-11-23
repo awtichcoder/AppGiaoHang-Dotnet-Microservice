@@ -1,0 +1,29 @@
+name: CI (Customer Android)
+
+on:
+  pull_request:
+  push:
+    branches: [customer]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Test lint and build
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
