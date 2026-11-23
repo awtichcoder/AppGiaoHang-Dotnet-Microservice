@@ -7,6 +7,7 @@ export const icons = {
   account: <svg width="16" height="20" viewBox="0 0 16 20" aria-hidden><path fill="currentColor" d="M8 8C6.9 8 5.958 7.608 5.175 6.825 4.392 6.042 4 5.1 4 4S4.392 1.958 5.175 1.175C5.958.392 6.9 0 8 0S10.042.392 10.825 1.175C11.608 1.958 12 2.9 12 4S11.608 6.042 10.825 6.825C10.042 7.608 9.1 8 8 8M0 16V13.2C0 12.633.146 12.113.438 11.638.729 11.163 1.117 10.8 1.6 10.55 2.633 10.033 3.683 9.646 4.75 9.388 5.817 9.129 6.9 9 8 9S10.183 9.129 11.25 9.388C12.317 9.646 13.367 10.033 14.4 10.55 14.883 10.8 15.271 11.163 15.563 11.638 15.854 12.113 16 12.633 16 13.2V16H0M2 14H14V13.2C14 13.017 13.954 12.85 13.863 12.7 13.771 12.55 13.65 12.433 13.5 12.35 12.6 11.9 11.692 11.563 10.775 11.338 9.858 11.113 8.933 11 8 11S6.142 11.113 5.225 11.338C4.308 11.563 3.4 11.9 2.5 12.35 2.35 12.433 2.229 12.55 2.138 12.7 2.046 12.85 2 13.017 2 13.2V14M8 6C8.55 6 9.021 5.804 9.413 5.413 9.804 5.021 10 4.55 10 4S9.804 2.979 9.413 2.588C9.021 2.196 8.55 2 8 2S6.979 2.196 6.588 2.588C6.196 2.979 6 3.45 6 4S6.196 5.021 6.588 5.413C6.979 5.804 7.45 6 8 6Z" /></svg>,
   people: <svg width="22" height="18" viewBox="0 0 22 18" aria-hidden><path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M8 8a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM1 17v-1.5C1 13 3.5 11 8 11s7 2 7 4.5V17M15 1.5a3.5 3.5 0 0 1 0 6.5M18 11.5c2 .7 3 2 3 4V17" /></svg>,
   refresh: <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden><path fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>,
+  complaint: <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden><path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M4 4h16v12H9l-5 4V4ZM12 7.5v4M12 14v.01" /></svg>,
 };
 
 export function Card({ title, action, children, className = '' }: { title?: string; action?: ReactNode; children: ReactNode; className?: string }) {
@@ -27,8 +28,14 @@ export const statusName: Record<string, string> = {
   PENDING: 'Chờ tài xế', SEARCHING: 'Đang tìm tài xế', ASSIGNED: 'Tài xế đã nhận', PICKED_UP: 'Đã lấy hàng',
   DELIVERING: 'Đang giao', COMPLETED: 'Hoàn tất', CANCELLED: 'Đã hủy', NO_DRIVER_FOUND: 'Không có tài xế',
   NOT_STARTED: 'Chưa bắt đầu', ACTIVE: 'Đang chạy',
+  OPEN: 'Mới gửi', IN_REVIEW: 'Đang xem xét', RESOLVED: 'Đã giải quyết', REJECTED: 'Đã từ chối',
 };
 export const ORDER_STATUSES = ['PENDING', 'ASSIGNED', 'PICKED_UP', 'DELIVERING', 'COMPLETED', 'CANCELLED', 'NO_DRIVER_FOUND'];
+export const COMPLAINT_STATUSES = ['OPEN', 'IN_REVIEW', 'RESOLVED', 'REJECTED'];
+export const complaintCategoryName: Record<string, string> = {
+  LATE_DELIVERY: 'Giao trễ', WRONG_ITEM: 'Sai hàng', DAMAGED_ITEM: 'Hàng hư hỏng', DRIVER_BEHAVIOR: 'Thái độ tài xế', OTHER: 'Khác',
+};
+export const reporterName: Record<string, string> = { CUSTOMER: 'Khách hàng', DRIVER: 'Tài xế' };
 
 export function Status({ value }: { value?: string | null }) {
   if (!value) return <span className="status">—</span>;

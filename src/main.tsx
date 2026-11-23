@@ -6,16 +6,20 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Orders } from './pages/Orders';
 import { OrderDetail } from './pages/OrderDetail';
+import { Complaints } from './pages/Complaints';
+import { ComplaintDetail } from './pages/ComplaintDetail';
 import { Accounts } from './pages/Accounts';
 import { Profile } from './pages/Profile';
 import './styles.css';
 
-type Route = { page: 'dashboard' } | { page: 'orders'; status?: string } | { page: 'order'; id: string } | { page: 'accounts' } | { page: 'profile' };
+type Route = { page: 'dashboard' } | { page: 'orders'; status?: string } | { page: 'order'; id: string }
+  | { page: 'complaints'; status?: string } | { page: 'complaint'; id: string } | { page: 'accounts' } | { page: 'profile' };
 
 function parseHash(): Route {
   const [path, search = ''] = window.location.hash.replace(/^#\/?/, '').split('?');
   const [page, arg] = path.split('/');
   if (page === 'orders') return arg ? { page: 'order', id: arg } : { page: 'orders', status: new URLSearchParams(search).get('status') ?? undefined };
+  if (page === 'complaints') return arg ? { page: 'complaint', id: arg } : { page: 'complaints', status: new URLSearchParams(search).get('status') ?? undefined };
   if (page === 'accounts' || page === 'profile') return { page };
   return { page: 'dashboard' };
 }
@@ -24,6 +28,7 @@ const go = (hash: string) => { window.location.hash = hash; };
 const TABS = [
   { key: 'dashboard', hash: '#/', label: 'Tổng quan', icon: icons.home },
   { key: 'orders', hash: '#/orders', label: 'Đơn hàng', icon: icons.orders },
+  { key: 'complaints', hash: '#/complaints', label: 'Khiếu nại', icon: icons.complaint },
   { key: 'accounts', hash: '#/accounts', label: 'Tạo tài khoản', icon: icons.people },
   { key: 'profile', hash: '#/profile', label: 'Tài khoản', icon: icons.account },
 ];
@@ -59,7 +64,7 @@ function App() {
   if (restoring) return <div className="splash"><div className="brand-mark">D</div></div>;
   if (!admin) return <Login notice={notice} onLogin={me => { setNotice(''); setAdmin(me); go('#/'); }} />;
 
-  const activeTab = route.page === 'order' ? 'orders' : route.page;
+  const activeTab = route.page === 'order' ? 'orders' : route.page === 'complaint' ? 'complaints' : route.page;
   return <div className="shell">
     <header className="header">
       <span className="avatar light">{initial(admin.fullName)}</span>
@@ -75,6 +80,8 @@ function App() {
       {route.page === 'dashboard' && <Dashboard onOpenOrder={id => go(`#/orders/${id}`)} onOpenOrders={status => go(status ? `#/orders?status=${status}` : '#/orders')} />}
       {route.page === 'orders' && <Orders initialStatus={route.status} onOpenOrder={id => go(`#/orders/${id}`)} />}
       {route.page === 'order' && <OrderDetail key={route.id} orderId={route.id} onBack={() => go('#/orders')} />}
+      {route.page === 'complaints' && <Complaints initialStatus={route.status} onOpen={id => go(`#/complaints/${id}`)} />}
+      {route.page === 'complaint' && <ComplaintDetail key={route.id} complaintId={route.id} onBack={() => go('#/complaints')} onOpenOrder={id => go(`#/orders/${id}`)} />}
       {route.page === 'accounts' && <Accounts />}
       {route.page === 'profile' && <Profile admin={admin} onLogout={() => { setAdmin(null); setNotice(''); go('#/'); }} />}
     </main>

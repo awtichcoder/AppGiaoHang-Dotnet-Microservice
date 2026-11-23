@@ -39,6 +39,8 @@ Trình duyệt gọi `/api/...` và `/health/...` trên chính cổng 5173; Vite
 | Tổng quan | Số đơn theo từng trạng thái (đếm chính xác bằng bộ lọc `status`), doanh thu = tổng phí đơn hoàn tất, 5 đơn mới nhất | `GET /api/order?status=…` |
 | Đơn hàng | Lọc theo trạng thái, phân trang, tìm trong trang | `GET /api/order?page=&pageSize=&status=` |
 | Chi tiết đơn | Lộ trình, chi phí, chuyến giao và mốc thời gian; nút **Tiến trình tìm tài xế**, **Vị trí tài xế** (mở bản đồ) | `GET /api/order/{id}`, `GET /api/delivery/order/{id}`, `GET /api/delivery/order/{id}/matching-status`, `GET /api/delivery/{deliveryId}/location` |
+| Khiếu nại | Bảng khiếu nại, lọc theo trạng thái, phân trang | `GET /api/complaint/admin?status=&page=&pageSize=` |
+| Chi tiết khiếu nại | Nội dung, đơn liên kết, xem ảnh (tải qua API có xác thực), đổi trạng thái `OPEN → IN_REVIEW → RESOLVED/REJECTED` kèm ghi chú (bắt buộc khi từ chối). Chỉ đổi trạng thái, không tự đền bù | `GET /api/complaint/{id}`, `GET /api/complaint/{id}/attachments/{attachmentId}`, `PATCH /api/complaint/admin/{id}/status` |
 | Tạo tài khoản | Tạo tài khoản Tài xế hoặc Quản trị viên | `POST /api/identity/admin/users` |
 | Tài khoản | Hồ sơ admin, đăng xuất, kiểm tra tình trạng Gateway và các service | `GET /health/live`, `GET /health/{service}/ready` |
 
@@ -51,6 +53,6 @@ src/
   api.ts          # gọi Gateway, lưu phiên (sessionStorage), refresh token, lỗi {code, message}
   ui.tsx          # Card, Button, Status, Row, icon, định dạng tiền/ngày
   main.tsx        # header, tab, điều hướng theo hash (#/orders/<id>)
-  pages/          # Login, Dashboard, Orders, OrderDetail, Accounts, Profile
+  pages/          # Login, Dashboard, Orders, OrderDetail, Complaints, ComplaintDetail, Accounts, Profile
   styles.css      # token màu của app Tài xế
 ```

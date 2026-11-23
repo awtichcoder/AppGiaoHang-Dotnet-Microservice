@@ -8,6 +8,7 @@ const CHECKS: [string, string][] = [
   ['Order Service', '/health/order/ready'],
   ['Delivery Service', '/health/delivery/ready'],
   ['Driver Service', '/health/driver/ready'],
+  ['Complaint Service', '/health/complaint/ready'],
 ];
 type Result = { ok: boolean; text: string };
 

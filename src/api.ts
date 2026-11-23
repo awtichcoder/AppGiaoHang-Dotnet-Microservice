@@ -24,6 +24,12 @@ export type MatchingStatus = {
 };
 export type DriverLocation = { deliveryId: string; driverId: string; latitude: number; longitude: number; recordedAt: string; accuracyM?: number | null };
 export type NewAccount = { email: string; password: string; fullName: string; phone: string; role: 'DRIVER' | 'ADMIN' };
+export type ComplaintAttachment = { id: string; fileName: string; contentType: string; sizeBytes: number; createdAt: string };
+export type Complaint = {
+  id: string; orderId: string; reporterRole: 'CUSTOMER' | 'DRIVER'; reporterId: string; category: string; description: string;
+  status: string; adminNote?: string | null; handledByAdminId?: string | null;
+  createdAt: string; updatedAt: string; resolvedAt?: string | null; attachments: ComplaintAttachment[];
+};
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); }
@@ -85,6 +91,35 @@ async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 }
 
+async function fetchBlob(path: string, token: string): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(BASE + path, { headers: { Authorization: `Bearer ${token}` } });
+  } catch {
+    throw new ApiError(0, 'NETWORK', 'Không kết nối được API Gateway. Hãy kiểm tra backend đang chạy ở cổng 6200.');
+  }
+  if (!response.ok) {
+    let body: { code?: string; message?: string } = {};
+    try { body = await response.json(); } catch { /* not JSON */ }
+    throw new ApiError(response.status, body.code ?? `HTTP_${response.status}`, body.message ?? `Máy chủ trả lỗi ${response.status}.`);
+  }
+  return response.blob();
+}
+
+/** Binary download with the same one-time token refresh as authed(). */
+async function authedBlob(path: string): Promise<Blob> {
+  const current = session.get();
+  if (!current) throw new ApiError(401, 'SESSION_EXPIRED', 'Phiên đăng nhập đã hết hạn.');
+  try {
+    return await fetchBlob(path, current.accessToken);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    const next = await refresh();
+    if (!next) throw new ApiError(401, 'SESSION_EXPIRED', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    return fetchBlob(path, next.accessToken);
+  }
+}
+
 export const api = {
   async login(email: string, password: string): Promise<User> {
     const tokens = await send<Session & { expiresAt: string }>('/api/identity/login', { method: 'POST', body: JSON.stringify({ email, password }) });
@@ -109,5 +144,11 @@ export const api = {
   matching: (orderId: string) => authed<MatchingStatus>(`/api/delivery/order/${orderId}/matching-status`),
   driverLocation: (deliveryId: string) => authed<DriverLocation>(`/api/delivery/${deliveryId}/location`),
   createAccount: (account: NewAccount) => authed<User>('/api/identity/admin/users', { method: 'POST', body: JSON.stringify(account) }),
+  complaints: (page: number, pageSize: number, status?: string) =>
+    authed<Paged<Complaint>>(`/api/complaint/admin?page=${page}&pageSize=${pageSize}${status ? `&status=${status}` : ''}`),
+  complaint: (id: string) => authed<Complaint>(`/api/complaint/${id}`),
+  updateComplaintStatus: (id: string, status: string, adminNote: string) =>
+    authed<Complaint>(`/api/complaint/admin/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, adminNote: adminNote.trim() || null }) }),
+  complaintAttachment: (id: string, attachmentId: string) => authedBlob(`/api/complaint/${id}/attachments/${attachmentId}`),
   health: (path: string) => send<{ status: string }>(path),
 };
